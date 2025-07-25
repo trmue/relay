@@ -1,0 +1,77 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "relay-bp"
+description = "Python bindings for the rust implementation of relay belief propagation for qLDPC codes."
+requires-python = ">=3.8"
+license = {text = "Apache 2.0"}
+authors = [
+    { name = "Thomas Alexander", email = "thomas.a.alexander@ibm.com" },
+    { name = "Tristan Müller", email = "tristan.mueller@ibm.com" },
+]
+keywords = [
+    "relay",
+    "relay-bp",
+    "bp",
+    "belief propagation",
+    "quantum error correction",
+    "qec",
+    "decoder",
+    "quantum computing",
+    "quantum",
+    "stim",
+    "qldpc",
+    "ldpc",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Scientific/Engineering",
+]
+dynamic = ["version"]
+
+
+dependencies = [
+    "numpy",
+    "scipy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "matplotlib",
+    "nevergrad",
+    "seaborn",
+    "pytest",
+    "pre-commit",
+    "pre-commit-hooks",
+    "black",
+    "tomlcheck",
+    "pytest",
+]
+stim = [
+    "stim>=1.15",
+    "beliefmatching"
+]
+
+[tool.maturin]
+python-source = "src"
+python-packages = ["relay_bp", "_relay_bp"]
+include = ["relay_bp/testdata/*"]
+manifest-path = "crates/relay_bp_py/Cargo.toml"
+features = ["pyo3/extension-module"]
+profile = "release"

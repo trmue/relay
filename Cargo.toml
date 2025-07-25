@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.1"
+authors = ["Thomas Alexander", "Tristan Müller"]
+description = "A rust implementation of relay belief propagation for qLDPC codes"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+ndarray = {version = ">= 0.15, < 0.17", features = ["serde"]}
+ndarray-npy = "0.9.1"
+numpy = "0.23"
+serde = {version = ">=1.0", features = ["derive"]}
+pyo3 = "^0.23.5"
+rayon = "1.10.0"
+sprs = {version = ">= 0.11"}
+indicatif = {version = ">=0.17", features = ["rayon"]}
+
+[workspace.lints.rust]
+
+
+[profile.bench]
+opt-level = 3
+debug = 1
+
+[profile.release]
+opt-level = 3

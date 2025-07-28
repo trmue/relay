@@ -3,10 +3,12 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.1-beta.3"
 authors = ["Thomas Alexander", "Tristan Müller"]
 description = "A rust implementation of relay belief propagation for qLDPC codes"
 license = "Apache-2.0"
+repository = "https://github.com/trmue/relay"
+readme = "./README.md"
 
 [workspace.dependencies]
 ndarray = {version = ">= 0.15, < 0.17", features = ["serde"]}

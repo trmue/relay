@@ -5,6 +5,8 @@ build-backend = "maturin"
 [project]
 name = "relay-bp"
 description = "Python bindings for the rust implementation of relay belief propagation for qLDPC codes."
+version = "0.0.1-beta.3"
+readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Apache 2.0"}
 authors = [
@@ -70,8 +72,7 @@ stim = [
 
 [tool.maturin]
 python-source = "src"
-python-packages = ["relay_bp", "_relay_bp"]
-include = ["relay_bp/testdata/*"]
+python-packages = ["relay_bp"]
 manifest-path = "crates/relay_bp_py/Cargo.toml"
 features = ["pyo3/extension-module"]
 profile = "release"

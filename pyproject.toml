@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "relay-bp"
 description = "Python bindings for the rust implementation of relay belief propagation for qLDPC codes."
-version = "0.0.1-beta.3"
+version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Apache 2.0"}

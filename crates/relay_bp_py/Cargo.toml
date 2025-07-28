@@ -1,9 +1,13 @@
 [package]
-name = "relay_bp_py"
+name = "relay-bp-py"
 edition = "2021"
 version.workspace = true
 authors.workspace = true
 description.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -11,7 +15,7 @@ name = "_relay_bp"
 crate-type = ["cdylib"]
 
 [dependencies]
-relay_bp = {path = "../relay_bp"}
+relay-bp = {path = "../relay_bp"}
 ndarray = {workspace = true, features = ["serde"]}
 numpy = {workspace = true}
 pyo3 = {workspace = true, features = ["auto-initialize"]}

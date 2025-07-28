@@ -1,9 +1,12 @@
 [package]
-name = "relay_bp"
+name = "relay-bp"
 edition = "2021"
 version.workspace = true
 authors.workspace = true
 description.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
 
 [lib]
 name = "relay_bp"

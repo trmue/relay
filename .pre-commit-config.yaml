@@ -1,0 +1,53 @@
+repos:
+  - repo: local
+    hooks:
+      # Disable linting for now as a manual linting pass is required
+      #- id: pylint
+      #  name: pylint
+      #  entry: pylint
+      #  language: system
+      #  types: [python]
+      #  require_serial: true
+      - id: black
+        name: black
+        entry: black
+        language: python
+        types: [file, python]
+      - id: check-toml
+        name: Check Toml
+        entry: check-toml
+        language: system
+        types: [toml]
+      - id: end-of-file-fixer
+        name: Fix End of Files
+        entry: end-of-file-fixer
+        language: system
+        types: [text]
+        stages: [pre-commit, pre-push, manual]
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        entry: trailing-whitespace-fixer
+        language: system
+        types: [text]
+        stages: [pre-commit, pre-push, manual]
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+    - id: fmt
+      entry: sh -c "cd ./ && cargo fmt"
+      args: ["--"]
+    - id: cargo-check
+      args: ["--manifest-path", "./Cargo.toml", "--"]
+    - id: clippy
+      args: ["--manifest-path", "./Cargo.toml", "--", "-D", "warnings"]
+  -   repo: https://github.com/pre-commit/mirrors-mypy
+      rev: 'v1.14.1'
+      hooks:
+      - id: mypy
+        args: [--ignore-missing-imports, --disable-error-code=import-untyped, --check-untyped-defs, --disable-error-code=import-not-found]
+        files: ^src/  # filter the files down to a specific subdirectory
+        additional_dependencies: [numpy>=2.2]
+exclude: |
+    (?x)(
+        ^examples/data/
+    )

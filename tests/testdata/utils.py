@@ -15,6 +15,8 @@ import numpy as np
 import stim
 import sinter
 
+from relay_bp.stim.noise import detect_data_qubits
+
 
 def filter_detectors_by_basis(
     circuit: stim.Circuit,
@@ -94,25 +96,6 @@ def filter_detectors_by_basis(
                 continue
         filtered_circuit.append(inst)
     return filtered_circuit
-
-
-def detect_data_qubits(circuit: stim.Circuit) -> list[int]:
-    """Detect data qubits as those that are only measured once in a circuit.
-
-    Warning: This is hacky and likely will only work with your typical memory circuits.
-    """
-    qubit_times_measured = [0 for qubit in range(circuit.num_qubits)]
-
-    for inst in circuit:
-        if inst.name.startswith("M") and not inst.gate_args_copy():
-            for qubit in inst.targets_copy():
-                qubit_times_measured[qubit.qubit_value] += 1
-
-    return [
-        qubit
-        for qubit, times_measured in enumerate(qubit_times_measured)
-        if times_measured == 1
-    ]
 
 
 def prob_at_least_one_error(marginals):

@@ -20,7 +20,7 @@ from relay_bp.stim import (
     CheckMatrices,
 )
 
-from relay_bp.stim.testdata import (
+from testdata import (
     get_test_circuit,
     get_all_test_circuits,
     filter_detectors_by_basis,

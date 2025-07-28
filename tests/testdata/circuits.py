@@ -23,7 +23,7 @@ def filter_file(file_name: Path, search_keys: dict[str, str]) -> bool:
         if value == "*":
             continue
         match_str = re.escape(f"{key}={value}")
-        regex_str = f"{match_str}(?=(;|$))"
+        regex_str = f"{match_str}(?=(,|$))"
         if not re.search(regex_str, file_str):
             return False
     return True

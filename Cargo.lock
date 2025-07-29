@@ -996,7 +996,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
-name = "relay_bp"
+name = "relay-bp"
 version = "0.1.0"
 dependencies = [
  "criterion",
@@ -1016,13 +1016,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "relay_bp_py"
+name = "relay-bp-py"
 version = "0.1.0"
 dependencies = [
  "ndarray",
  "numpy",
  "pyo3",
- "relay_bp",
+ "relay-bp",
  "sprs",
 ]
 

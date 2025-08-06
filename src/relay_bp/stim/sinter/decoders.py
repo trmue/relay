@@ -148,7 +148,7 @@ class SinterDecoder_BaseBP(Decoder):
             predictions = (predictions + check_matrices.observables_bias) % 2
 
         stim.write_shot_data_file(
-            data=predictions,
+            data=np.packbits(predictions, axis=1, bitorder="little"),
             path=obs_predictions_b8_out_path,
             format="b8",
             num_observables=dem.num_observables,

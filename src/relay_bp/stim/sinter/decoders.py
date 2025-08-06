@@ -28,10 +28,14 @@ class SinterCompiledDecoder_BP(CompiledDecoder):
         observable_decoder: relay_bp.ObservableDecoderRunner,
         check_matrices: CheckMatrices,
         parallel: bool = False,
+        show_progress: bool = False,
+        leave_progress_bar_on_finish: bool = False,
     ):
         self.observable_decoder = observable_decoder
         self.parallel = parallel
         self.check_matrices = check_matrices
+        self.show_progress = show_progress
+        self.leave_progress_bar_on_finish = leave_progress_bar_on_finish
 
     def decode_shots_bit_packed(
         self,
@@ -47,7 +51,10 @@ class SinterCompiledDecoder_BP(CompiledDecoder):
             syndromes = (syndromes + self.check_matrices.syndrome_bias) % 2
 
         predictions = self.observable_decoder.decode_observables_batch(
-            syndromes, parallel=self.parallel
+            syndromes,
+            parallel=self.parallel,
+            progress_bar=self.show_progress,
+            leave_progress_bar_on_finish=self.leave_progress_bar_on_finish,
         )
 
         if self.check_matrices.observables_bias is not None:
@@ -64,12 +71,16 @@ class SinterDecoder_BaseBP(Decoder):
         decomposed_hyperedges: bool | None = None,
         prune_decided_errors: bool = True,
         threshold: float = 0.0,
+        show_progress: bool = False,
+        leave_progress_bar_on_finish: bool = False,
     ):
         f"""Class for decoding stim circuits with sinter and relay-bp."""
         self.parallel = parallel
         self.decomposed_hyperedges = decomposed_hyperedges
         self.prune_decided_errors = prune_decided_errors
         self.threshold = threshold
+        self.show_progress = show_progress
+        self.leave_progress_bar_on_finish = leave_progress_bar_on_finish
 
     def build_observable_decoder(
         self, dem: stim.DetectorErrorModel
@@ -90,6 +101,8 @@ class SinterDecoder_BaseBP(Decoder):
             observable_decoder_runner,
             check_matrices=check_matrices,
             parallel=self.parallel,
+            show_progress=self.show_progress,
+            leave_progress_bar_on_finish=self.leave_progress_bar_on_finish,
         )
 
     def decode_via_files(
@@ -127,13 +140,15 @@ class SinterDecoder_BaseBP(Decoder):
         predictions = observable_decoder.decode_observables_batch(
             syndromes,
             parallel=self.parallel,
+            progress_bar=self.show_progress,
+            leave_progress_bar_on_finish=self.leave_progress_bar_on_finish,
         )
 
         if check_matrices.observables_bias is not None:
             predictions = (predictions + check_matrices.observables_bias) % 2
 
         stim.write_shot_data_file(
-            data=predictions,
+            data=np.packbits(predictions, axis=1, bitorder="little"),
             path=obs_predictions_b8_out_path,
             format="b8",
             num_observables=dem.num_observables,

@@ -156,7 +156,7 @@ impl ObservableDecoderRunner {
         )
     }
 
-    #[pyo3(signature = (detectors, parallel=false, progress_bar=true, leave_progress_bar_on_finish=false))]
+    #[pyo3(signature = (detectors, parallel=false, progress_bar=false, leave_progress_bar_on_finish=false))]
     pub fn decode_batch<'py>(
         &mut self,
         py: Python<'py>,
@@ -178,7 +178,7 @@ impl ObservableDecoderRunner {
         results.into_pyarray(py)
     }
 
-    #[pyo3(signature = (detectors, parallel=false, progress_bar=true, leave_progress_bar_on_finish=false))]
+    #[pyo3(signature = (detectors, parallel=false, progress_bar=false, leave_progress_bar_on_finish=false))]
     pub fn decode_detailed_batch(
         &mut self,
         detectors: PyReadonlyArray2<'_, Bit>,
@@ -201,7 +201,7 @@ impl ObservableDecoderRunner {
         results.into_iter().map(DecodeResult::new).collect()
     }
 
-    #[pyo3(signature = (detectors, parallel=false, progress_bar=true, leave_progress_bar_on_finish=false))]
+    #[pyo3(signature = (detectors, parallel=false, progress_bar=false, leave_progress_bar_on_finish=false))]
     pub fn decode_observables_batch<'py>(
         &mut self,
         py: Python<'py>,
@@ -227,7 +227,7 @@ impl ObservableDecoderRunner {
         results.into_pyarray(py)
     }
 
-    #[pyo3(signature = (errors, parallel=false, progress_bar=true, leave_progress_bar_on_finish=false))]
+    #[pyo3(signature = (errors, parallel=false, progress_bar=false, leave_progress_bar_on_finish=false))]
     pub fn from_errors_decode_observables_batch<'py>(
         &mut self,
         py: Python<'py>,
@@ -260,7 +260,7 @@ impl ObservableDecoderRunner {
         results.into_pyarray(py)
     }
 
-    #[pyo3(signature = (detectors, parallel=false, progress_bar=true, leave_progress_bar_on_finish=false))]
+    #[pyo3(signature = (detectors, parallel=false, progress_bar=false, leave_progress_bar_on_finish=false))]
     pub fn decode_observables_detailed_batch(
         &mut self,
         detectors: PyReadonlyArray2<'_, Bit>,
@@ -292,7 +292,7 @@ impl ObservableDecoderRunner {
             .collect()
     }
 
-    #[pyo3(signature = (errors, parallel=false, progress_bar=true, leave_progress_bar_on_finish=false))]
+    #[pyo3(signature = (errors, parallel=false, progress_bar=false, leave_progress_bar_on_finish=false))]
     pub fn from_errors_decode_observables_detailed_batch(
         &mut self,
         errors: PyReadonlyArray2<'_, Bit>,

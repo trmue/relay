@@ -47,7 +47,9 @@ class SinterCompiledDecoder_BP(CompiledDecoder):
             syndromes = (syndromes + self.check_matrices.syndrome_bias) % 2
 
         predictions = self.observable_decoder.decode_observables_batch(
-            syndromes, parallel=self.parallel
+            syndromes,
+            parallel=self.parallel,
+            progress_bar=False,
         )
 
         if self.check_matrices.observables_bias is not None:
@@ -127,6 +129,7 @@ class SinterDecoder_BaseBP(Decoder):
         predictions = observable_decoder.decode_observables_batch(
             syndromes,
             parallel=self.parallel,
+            progress_bar=False,
         )
 
         if check_matrices.observables_bias is not None:

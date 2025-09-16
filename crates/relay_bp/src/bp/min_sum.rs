@@ -527,12 +527,6 @@ where
         debug!("Hard decision: {:?}", self.decoding);
     }
 
-    fn reset_posteriors(&mut self) {
-        for (idx, posterior) in self.posterior_ratios.iter().enumerate() {
-            self.decoding[idx] = Bit::from((*posterior) <= N::zero());
-        }
-    }
-
     pub fn compute_decoded_detectors(&self) -> Array1<Bit> {
         self.get_detectors(self.decoding.view())
     }

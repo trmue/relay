@@ -152,7 +152,7 @@ where
             }
         });
 
-        // Initialize EWA and posteriors
+        // Initialize Mem-BP and posteriors
         let ewa_factor_float = config.gamma0.unwrap_or(0.);
         let ewa_factor = N::from_f64(match config.data_scale_value {
             Some(scale_value) => scale_value * ewa_factor_float,
@@ -204,6 +204,10 @@ where
             }
             None => log_prior_ratios.mapv_into_any(|v| N::from_f64(v).unwrap()),
         };
+    }
+
+    pub fn clear_posterior_ratios(&mut self) {
+        self.posterior_ratios.iter_mut().for_each(|x| *x = N::zero());
     }
 
     /// Set external memory strengths from f64. Applies scaling if needed.
@@ -521,6 +525,12 @@ where
         }
         debug!("Posteriors: {:?}", self.posterior_ratios);
         debug!("Hard decision: {:?}", self.decoding);
+    }
+
+    fn reset_posteriors(&mut self) {
+        for (idx, posterior) in self.posterior_ratios.iter().enumerate() {
+            self.decoding[idx] = Bit::from((*posterior) <= N::zero());
+        }
     }
 
     pub fn compute_decoded_detectors(&self) -> Array1<Bit> {

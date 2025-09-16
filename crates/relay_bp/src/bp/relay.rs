@@ -302,8 +302,9 @@ where
         let mut total_iterations: usize = 0;
         self.num_executed_sets = 0;
         let stopping_criterion = self.relay_config.stopping_criterion.clone();
+        self.bp_decoder.clear_posterior_ratios();
 
-        // First set (EWA)
+        // First set (Mem-BP)
         let mut result = self.decode_inner(detectors, true, self.relay_config.pre_iter);
 
         // Create logging variables and log first set if applicable

@@ -206,8 +206,8 @@ where
         };
     }
 
-    pub fn clear_posterior_ratios(&mut self) {
-        self.posterior_ratios.iter_mut().for_each(|x| *x = N::zero());
+    pub fn set_posterior_ratios_to_priors(&mut self) {
+        self.posterior_ratios = self.log_prior_ratios.clone();
     }
 
     /// Set external memory strengths from f64. Applies scaling if needed.

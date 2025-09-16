@@ -302,7 +302,7 @@ where
         let mut total_iterations: usize = 0;
         self.num_executed_sets = 0;
         let stopping_criterion = self.relay_config.stopping_criterion.clone();
-        self.bp_decoder.clear_posterior_ratios();
+        self.bp_decoder.set_posterior_ratios_to_priors();
 
         // First set (Mem-BP)
         let mut result = self.decode_inner(detectors, true, self.relay_config.pre_iter);

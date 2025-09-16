@@ -304,7 +304,7 @@ where
         let stopping_criterion = self.relay_config.stopping_criterion.clone();
         self.bp_decoder.set_posterior_ratios_to_priors();
 
-        // First set (Mem-BP)
+        // First Mem-BP
         let mut result = self.decode_inner(detectors, true, self.relay_config.pre_iter);
 
         // Create logging variables and log first set if applicable

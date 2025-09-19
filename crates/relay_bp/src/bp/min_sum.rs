@@ -577,7 +577,7 @@ where
         self.initialize_variable_to_check();
         // Initialize posteriors if needed for mem-BP
         if self.config.gamma0.is_some() {
-            self.posterior_ratios = self.log_prior_ratios.clone()
+            self.set_posterior_ratios_to_priors();
         };
         let mut success: bool = false;
         let mut decoded_detectors = Array1::default(detectors.dim());

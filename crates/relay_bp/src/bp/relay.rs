@@ -216,6 +216,7 @@ where
         if initialize {
             self.bp_decoder.current_iteration = 0;
             self.bp_decoder.initialize_variable_to_check();
+            self.bp_decoder.set_posterior_ratios_to_priors();
         }
 
         let mut success: bool = false;
@@ -303,7 +304,7 @@ where
         self.num_executed_sets = 0;
         let stopping_criterion = self.relay_config.stopping_criterion.clone();
 
-        // First set (EWA)
+        // First Mem-BP
         let mut result = self.decode_inner(detectors, true, self.relay_config.pre_iter);
 
         // Create logging variables and log first set if applicable

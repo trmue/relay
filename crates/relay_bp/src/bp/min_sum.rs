@@ -152,7 +152,7 @@ where
             }
         });
 
-        // Initialize EWA and posteriors
+        // Initialize Mem-BP and posteriors
         let ewa_factor_float = config.gamma0.unwrap_or(0.);
         let ewa_factor = N::from_f64(match config.data_scale_value {
             Some(scale_value) => scale_value * ewa_factor_float,
@@ -204,6 +204,10 @@ where
             }
             None => log_prior_ratios.mapv_into_any(|v| N::from_f64(v).unwrap()),
         };
+    }
+
+    pub fn set_posterior_ratios_to_priors(&mut self) {
+        self.posterior_ratios = self.log_prior_ratios.clone();
     }
 
     /// Set external memory strengths from f64. Applies scaling if needed.
@@ -573,7 +577,7 @@ where
         self.initialize_variable_to_check();
         // Initialize posteriors if needed for mem-BP
         if self.config.gamma0.is_some() {
-            self.posterior_ratios = self.log_prior_ratios.clone()
+            self.set_posterior_ratios_to_priors();
         };
         let mut success: bool = false;
         let mut decoded_detectors = Array1::default(detectors.dim());

@@ -152,15 +152,7 @@ where
             }
         });
 
-        // Initialize Mem-BP and posteriors
-        let ewa_factor_float = config.gamma0.unwrap_or(0.);
-        let ewa_factor = N::from_f64(match config.data_scale_value {
-            Some(scale_value) => scale_value * ewa_factor_float,
-            None => ewa_factor_float,
-        })
-        .unwrap();
-
-        let memory_strengths = Array1::from_elem(check_matrix.cols(), ewa_factor);
+        let memory_strengths = Array1::from_elem(check_matrix.cols(), N::zero());
 
         let posterior_ratios = if config.gamma0.is_some() {
             log_prior_ratios.clone()
@@ -275,13 +267,42 @@ where
     }
 
     /// Initialize variable message state to the prior
-    pub fn initialize_variable_to_check(&mut self) -> &mut SparseBipartiteGraph<N> {
+    pub fn initialize_variable_to_check(&mut self) {
         for mut row_vec in self.variable_to_check.outer_iterator_mut() {
             row_vec
                 .iter_mut()
                 .for_each(|(col_ind, val)| *val = self.log_prior_ratios[col_ind]);
         }
-        &mut self.variable_to_check
+    }
+
+    pub fn initialize_check_to_variable(&mut self) {
+        for mut col_vec in self.check_to_variable.outer_iterator_mut() {
+            col_vec
+                .iter_mut()
+                .for_each(|(_row_ind, val)| *val = N::zero());
+        }
+    }
+
+    pub fn initialize_memory_strengths(&mut self) {
+        // Initialize Mem-BP and posteriors
+        let ewa_factor_float = self.config.gamma0.unwrap_or(0.);
+        let ewa_factor = N::from_f64(match self.config.data_scale_value {
+            Some(scale_value) => scale_value * ewa_factor_float,
+            None => ewa_factor_float,
+        })
+        .unwrap();
+        self.memory_strengths.fill(ewa_factor);
+    }
+
+    pub fn initialize_decoder(&mut self) {
+        self.current_iteration = 0;
+        self.initialize_memory_strengths();
+        self.initialize_check_to_variable();
+        self.initialize_variable_to_check();
+        // Initialize posteriors if needed for mem-BP
+        if self.config.gamma0.is_some() {
+            self.set_posterior_ratios_to_priors();
+        };
     }
 
     fn alpha(&self) -> N {
@@ -573,12 +594,7 @@ where
 
     fn decode_detailed(&mut self, detectors: ArrayView1<Bit>) -> DecodeResult {
         // Initialize probability ratios
-        self.current_iteration = 0;
-        self.initialize_variable_to_check();
-        // Initialize posteriors if needed for mem-BP
-        if self.config.gamma0.is_some() {
-            self.set_posterior_ratios_to_priors();
-        };
+        self.initialize_decoder();
         let mut success: bool = false;
         let mut decoded_detectors = Array1::default(detectors.dim());
 

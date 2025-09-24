@@ -209,16 +209,8 @@ where
     fn decode_inner(
         &mut self,
         detectors: ArrayView1<Bit>,
-        initialize: bool,
         max_iter: usize,
     ) -> DecodeResult {
-        // Initialize probability ratios
-        if initialize {
-            self.bp_decoder.current_iteration = 0;
-            self.bp_decoder.initialize_variable_to_check();
-            self.bp_decoder.set_posterior_ratios_to_priors();
-        }
-
         let mut success: bool = false;
         let mut decoded_detectors = Array1::default(detectors.dim());
 
@@ -305,7 +297,9 @@ where
         let stopping_criterion = self.relay_config.stopping_criterion.clone();
 
         // First Mem-BP
-        let mut result = self.decode_inner(detectors, true, self.relay_config.pre_iter);
+        self.bp_decoder.initialize_decoder();
+        let mut result = self.decode_inner(detectors, self.relay_config.pre_iter);
+        self.num_executed_sets = 1;
 
         // Create logging variables and log first set if applicable
         if self.relay_config.logging {
@@ -313,7 +307,6 @@ where
             self.sets_conv[0] = result.success;
         }
 
-        self.num_executed_sets = 0;
         // Check early stopping criteria
         if result.success {
             num_conv += 1;
@@ -348,8 +341,13 @@ where
         // Init and loop over all Relay sets
         total_iterations += result.iterations;
         for set in 1..=self.relay_config.num_sets {
+            // Do not completely initialize decoder as we wish to relay
+            // posterior marginals with new memory strengths.
             self.init_next_set(set);
-            let temp_result = self.decode_inner(detectors, true, self.relay_config.set_max_iter);
+            self.bp_decoder.current_iteration = 0;
+            self.bp_decoder.initialize_check_to_variable();
+            self.bp_decoder.initialize_variable_to_check();
+            let temp_result = self.decode_inner(detectors, self.relay_config.set_max_iter);
 
             self.num_executed_sets += 1;
             total_iterations += temp_result.iterations;

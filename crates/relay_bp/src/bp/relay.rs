@@ -206,11 +206,7 @@ where
     }
 
     /// Decode with the inner decoder
-    fn decode_inner(
-        &mut self,
-        detectors: ArrayView1<Bit>,
-        max_iter: usize,
-    ) -> DecodeResult {
+    fn decode_inner(&mut self, detectors: ArrayView1<Bit>, max_iter: usize) -> DecodeResult {
         let mut success: bool = false;
         let mut decoded_detectors = Array1::default(detectors.dim());
 

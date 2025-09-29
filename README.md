@@ -126,43 +126,48 @@ from pathlib import Path
 sys.path.append(str(Path("tests").resolve()))
 from testdata import filter_detectors_by_basis, get_test_circuit
 
-num_workers = multiprocessing.cpu_count()
 
-circuit = "bicycle_bivariate_144_12_12_memory_Z"
-distance = 12
-rounds = 12
-shots = 10000
-error_rate = 0.003
-XYZ_decoding = False
+def main():
+    num_workers = multiprocessing.cpu_count()
 
-decoders = sinter_decoders(
-    gamma0=0.1,
-    pre_iter=80,
-    num_sets=60,
-    set_max_iter=60,
-    gamma_dist_interval=(-0.24, 0.66),
-    stop_nconv=1,
-)
+    circuit = "bicycle_bivariate_144_12_12_memory_Z"
+    distance = 12
+    rounds = 12
+    shots = 10000
+    error_rate = 0.003
+    XYZ_decoding = False
 
-circuit = get_test_circuit(circuit=circuit, distance=distance, rounds=rounds, error_rate=error_rate)
-if not XYZ_decoding:
-    circuit = filter_detectors_by_basis(circuit, "Z")
+    decoders = sinter_decoders(
+        gamma0=0.1,
+        pre_iter=80,
+        num_sets=60,
+        set_max_iter=60,
+        gamma_dist_interval=(-0.24, 0.66),
+        stop_nconv=1,
+    )
 
-task = sinter.Task(
-    circuit=circuit,
-    decoder="relay-bp",
-    collection_options=sinter.CollectionOptions(max_shots=shots)
-)
+    circuit = get_test_circuit(circuit=circuit, distance=distance, rounds=rounds, error_rate=error_rate)
+    if not XYZ_decoding:
+        circuit = filter_detectors_by_basis(circuit, "Z")
 
-# Collect the samples (takes a few minutes).
-samples = sinter.collect(
-        tasks=[task],
-        num_workers=num_workers,
-        custom_decoders=decoders,
-   )
+    task = sinter.Task(
+        circuit=circuit,
+        decoder="relay-bp",
+        collection_options=sinter.CollectionOptions(max_shots=shots)
+    )
 
-task_output = samples[0]
-print(f"Sinter execution - shots: {task_output.shots}, errors: {task_output.errors}, logical error rate: {task_output.errors/task_output.shots}")
+    # Collect the samples (takes a few minutes).
+    samples = sinter.collect(
+            tasks=[task],
+            num_workers=num_workers,
+            custom_decoders=decoders,
+    )
+
+    task_output = samples[0]
+    print(f"Sinter execution - shots: {task_output.shots}, errors: {task_output.errors}, logical error rate: {task_output.errors/task_output.shots}")
+
+if __name__ == "__main__":
+    main()
 ```
 
 Which should yield:

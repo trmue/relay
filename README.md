@@ -209,7 +209,7 @@ to task-scheduled parallelism. For large simulations it may be important to cons
 
 
 ### Additional comments/features
-- Stim test circuits are available in [testdata](./src/relay_bp/stim/testdata/) and may be fetched using the helper functions `relay_bp.stim.testdata.circuits.get_test_circuit` and `relay_bp.stim.testdata.circuits.get_all_test_circuits`.
+- Stim test circuits are available in [testdata](tests/testdata/) and may be fetched using the helper functions `relay_bp.stim.testdata.circuits.get_test_circuit` and `relay_bp.stim.testdata.circuits.get_all_test_circuits`.
 - The `ObservableDecoderRunner` supports batch decoding in parallel with a progress bar as `observable_decoder.decode_batch(syndromes, parallel=True, progress_bar=False)`.
 - Detailed execution information may be reported with `decode_detailed` and `decode_detailed_batch` returning a `DecodeResult`.
 - A variety of Relay-BP implementation data types are available such as `RelayDecoderF32/RelayDecoderF64/RelayDecoderI32/RelayDecoderI64`. These may be further limited in their messaging precision using the input parameters `data_scale_value` and `max_data_value` to effectively explore a range of non-native precisions such as `I5`.

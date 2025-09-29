@@ -114,14 +114,17 @@ Giving:
 The Relay-BP package includes optional integration with [`stim`](https://github.com/quantumlib/Stim) and [`sinter`](https://github.com/quantumlib/Stim/tree/main/glue/sample)
 for constructing and running decoding experiments. Install with `pip install ".[stim]"`.
 
-We include reference circuits for a variety of codes in [`testdata/`](./src/relay_bp/stim/testdata/) along with utility method to load these.
+We include reference circuits for a variety of codes in [`testdata/`](tests/testdata/) along with utility methods to load these.
 Below is an example of decoding the gross code with Stim + Sinter.
 
 ```python
 import sinter
 import multiprocessing
 from relay_bp.stim import sinter_decoders
-from relay_bp.stim.testdata import get_test_circuit, filter_detectors_by_basis
+import sys
+from pathlib import Path
+sys.path.append(str(Path("tests").resolve()))
+from testdata import filter_detectors_by_basis, get_test_circuit
 
 num_workers = multiprocessing.cpu_count()
 

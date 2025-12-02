@@ -234,7 +234,7 @@ where
 
     fn write_log(&mut self, file: File) {
         let mut buf_writer = BufWriter::new(file);
-        for set in 0..=self.num_executed_sets {
+        for set in 0..self.num_executed_sets {
             let log_line = format!(
                 "{}, {}, {}, {}\n",
                 (set - 1) as i32,

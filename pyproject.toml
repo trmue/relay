@@ -73,6 +73,7 @@ stim = [
 [tool.maturin]
 python-source = "src"
 python-packages = ["relay_bp"]
+module-name = "relay_bp._relay_bp"
 manifest-path = "crates/relay_bp_py/Cargo.toml"
 features = ["pyo3/extension-module"]
 profile = "release"

@@ -25,17 +25,15 @@ __all__ = [
     "MinSumBPDecoderFixed",
 ]
 
-from _relay_bp import _bp  # pylint: disable=E0611
-from _relay_bp._bp import (  # pylint: disable=E0611,E0401
-    RelayDecoderF32,
-    RelayDecoderF64,
-    RelayDecoderI32,
-    RelayDecoderI64,
-    MinSumBPDecoderF32,
-    MinSumBPDecoderF64,
-    MinSumBPDecoderI8,
-    MinSumBPDecoderI16,
-    MinSumBPDecoderI32,
-    MinSumBPDecoderI64,
-    MinSumBPDecoderFixed,
-)
+from .._relay_bp import _bp  # pylint: disable=E0611
+RelayDecoderF32 = _bp.RelayDecoderF32
+RelayDecoderF64 = _bp.RelayDecoderF64
+RelayDecoderI32 = _bp.RelayDecoderI32
+RelayDecoderI64 = _bp.RelayDecoderI64
+MinSumBPDecoderF32 = _bp.MinSumBPDecoderF32
+MinSumBPDecoderF64 = _bp.MinSumBPDecoderF64
+MinSumBPDecoderI8 = _bp.MinSumBPDecoderI8
+MinSumBPDecoderI16 = _bp.MinSumBPDecoderI16
+MinSumBPDecoderI32 = _bp.MinSumBPDecoderI32
+MinSumBPDecoderI64 = _bp.MinSumBPDecoderI64
+MinSumBPDecoderFixed = _bp.MinSumBPDecoderFixed

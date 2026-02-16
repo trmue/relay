@@ -15,5 +15,6 @@ __all__ = [
     "DecodeResult",
 ]
 
-from _relay_bp import _decoder  # pylint: disable=E0611
-from _relay_bp._decoder import DecodeResult
+from ._relay_bp import _decoder  # pylint: disable=E0611
+
+DecodeResult = _decoder.DecodeResult

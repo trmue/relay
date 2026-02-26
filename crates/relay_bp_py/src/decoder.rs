@@ -24,7 +24,7 @@ pub fn get_sprs_bit_matrix_from_python(
 ) -> PyResult<SparseBitMatrix> {
     let matrix = matrix.call_method1("astype", ("uint8",))?;
 
-    if let Ok(dense) = matrix.downcast::<PyArray2<Bit>>() {
+    if let Ok(dense) = matrix.cast::<PyArray2<Bit>>() {
         let dense = dense.to_owned_array();
         Ok(SparseBitMatrix::from_dense(dense))
     } else {
@@ -70,7 +70,7 @@ pub fn get_sprs_bit_matrix_from_python(
     }
 }
 
-#[pyclass(subclass, module = "decoder")]
+#[pyclass(from_py_object, subclass, module = "decoder")]
 #[derive(Clone)]
 pub struct DynDecoder(pub Box<dyn DecoderInner + Send + 'static>);
 

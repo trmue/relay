@@ -55,6 +55,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+stim = [
+    "stim>=1.15",
+    "beliefmatching"
+]
+
+[dependency-groups]
 dev = [
     "matplotlib",
     "nevergrad",
@@ -64,11 +70,7 @@ dev = [
     "pre-commit-hooks",
     "black",
     "tomlcheck",
-    "pytest",
-]
-stim = [
-    "stim>=1.15",
-    "beliefmatching"
+    "maturin",
 ]
 
 [tool.maturin]

@@ -38,7 +38,7 @@ jobs:
         cache: 'pip' # Enable caching for pip dependencies
 
     - name: Install dependencies
-      run: pip install -e ".[stim,dev]"
+      run: pip install -e ".[stim]" --group dev
 
     - name: Run tests
       run: pytest # Or your preferred testing command

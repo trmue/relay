@@ -13,7 +13,6 @@ from pathlib import Path
 
 import stim
 
-
 testdata_path = Path(__file__).parent
 
 

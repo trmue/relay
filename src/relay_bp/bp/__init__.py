@@ -26,6 +26,7 @@ __all__ = [
 ]
 
 from .._relay_bp import _bp  # pylint: disable=E0611
+
 RelayDecoderF32 = _bp.RelayDecoderF32
 RelayDecoderF64 = _bp.RelayDecoderF64
 RelayDecoderI32 = _bp.RelayDecoderI32

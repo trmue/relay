@@ -26,6 +26,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
 
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+
+    - name: Export PYO3_PYTHON
+      run: echo "PYO3_PYTHON=$(python -c 'import sys,shutil;print(shutil.which(\"python\"))')" >> $GITHUB_ENV
+
     - name: Build
       run: cargo build --verbose --release
 

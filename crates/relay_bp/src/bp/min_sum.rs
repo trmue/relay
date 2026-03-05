@@ -515,8 +515,7 @@ where
     }
     fn bound_magnitudes(&mut self) {
         // Bound magnitudes
-        if self.max_data_value.is_some() {
-            let max_val = self.max_data_value.unwrap();
+        if let Some(max_val) = self.max_data_value {
             self.variable_to_check
                 .data_mut()
                 .iter_mut()

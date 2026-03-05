@@ -57,7 +57,8 @@ dependencies = [
 [project.optional-dependencies]
 stim = [
     "stim>=1.15",
-    "beliefmatching"
+    "beliefmatching",
+    "numpy<2.3" # Resolves type issue in sinter, see https://github.com/quantumlib/Stim/issues/1000.
 ]
 
 [dependency-groups]

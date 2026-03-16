@@ -41,7 +41,7 @@ jobs:
           cache: 'pip'  # cache pip downloads
 
       - name: Install Python deps (dev)
-        run: pip install -U pip && pip install -e ".[dev]"
+        run: pip install -U pip && pip install -e . --group dev
 
       - name: Install pre-commit (if not in dev extras)
         run: pip install pre-commit

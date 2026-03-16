@@ -39,6 +39,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
@@ -54,6 +55,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+stim = [
+    "stim>=1.15",
+    "beliefmatching",
+    "numpy<2.3" # Resolves type issue in sinter, see https://github.com/quantumlib/Stim/issues/1000.
+]
+
+[dependency-groups]
 dev = [
     "matplotlib",
     "nevergrad",
@@ -63,11 +71,7 @@ dev = [
     "pre-commit-hooks",
     "black",
     "tomlcheck",
-    "pytest",
-]
-stim = [
-    "stim>=1.15",
-    "beliefmatching"
+    "maturin",
 ]
 
 [tool.maturin]

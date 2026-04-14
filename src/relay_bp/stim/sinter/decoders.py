@@ -43,8 +43,12 @@ class SinterCompiledDecoder_BP(CompiledDecoder):
         bit_packed_detection_event_data: "np.ndarray",
     ) -> "np.ndarray":
 
+        num_detectors = self.check_matricies.check_matrix.shape[0]
         syndromes = np.unpackbits(
-            bit_packed_detection_event_data, bitorder="little", axis=1
+            bit_packed_detection_event_data,
+            bitorder="little",
+            axis=1,
+            count=num_detectors,
         ).astype(np.uint8)
 
         if self.check_matrices.syndrome_bias is not None:

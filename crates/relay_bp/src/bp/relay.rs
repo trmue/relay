@@ -208,6 +208,7 @@ where
 
         for _ in 0..max_iter {
             self.bp_decoder.run_iteration(detectors);
+            self.bp_decoder.current_iteration += 1;
             decoded_detectors = self.bp_decoder.compute_decoded_detectors();
             success = self
                 .bp_decoder
@@ -221,7 +222,6 @@ where
                 );
                 break;
             }
-            self.bp_decoder.current_iteration += 1;
         }
 
         self.bp_decoder

@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Thomas Alexander", "Tristan Müller"]
 description = "A rust implementation of relay belief propagation for qLDPC codes"
 license = "Apache-2.0"

@@ -329,75 +329,149 @@ where
         N::from_f64(alpha).unwrap()
     }
 
+    /// Compute the two smallest magnitudes in a slice of messages.
+    ///
+    /// Uses `LANES` independent accumulators with branchless (select-style)
+    /// updates. Unlike a single running (min, second_min, min_ind) triple,
+    /// the lanes carry no dependency on each other, so the CPU can overlap
+    /// iterations and LLVM can detect the vectorization opportunities.
+    /// This makes uses of the SIMD instructions more efficient. 
+    #[inline]
+    fn min_two_magnitudes(messages: &[N]) -> (N, N) {
+        #[cfg(target_feature = "avx2")]
+        const LANES: usize = 8;
+        #[cfg(not(target_feature = "avx2"))]
+        const LANES: usize = 4;
+        let mut min1 = [N::max_value(); LANES];
+        let mut min2 = [N::max_value(); LANES];
+
+        // Branchless two-smallest update:
+        //   min1' = min(abs_msg, min1)
+        //   min2' = min(max(abs_msg, min1), min2)
+        let mut chunks = messages.chunks_exact(LANES);
+        for chunck in &mut chunks {
+            for k in 0..LANES{
+                let abs_msg = chunck[k].abs();
+                let lo = if abs_msg < min1[k] { abs_msg } else { min1[k] };
+                let hi = if abs_msg < min1[k] { min1[k] } else { abs_msg };
+                
+                min1[k] = lo;
+                if hi < min2[k] {
+                    min2[k] = hi;
+                }
+            }
+        }
+
+        for msg in chunks.remainder() {
+            let abs_msg = msg.abs();
+            let lo = if abs_msg < min1[0] { abs_msg } else { min1[0] };
+            let hi = if abs_msg < min1[0] { min1[0] } else { abs_msg };
+            min1[0] = lo;
+            if hi < min2[0] {
+                min2[0] = hi;
+            }
+        }
+
+        // Merge the per-lane results.
+        let mut min_message = N::max_value();
+        let mut second_min_message = N::max_value();
+        for k in 0..LANES {
+
+            // lo = min(min1[k], min_message)
+            // hi = max(min1[k], min_message)
+            // second_min = min(hi, min2[k], second_min_message)
+
+            let lo = if min1[k] < min_message {
+                min1[k]
+            } else {
+                min_message
+            };
+            let hi = if min1[k] < min_message {
+                min_message
+            } else {
+                min1[k]
+            };
+
+            min_message = lo;
+            if hi < second_min_message {
+                second_min_message = hi;
+            }
+            if min2[k] < second_min_message {
+                second_min_message = min2[k];
+            }
+        }
+        (min_message, second_min_message)
+    }
+
     /// Compute check to bit message iteration
     fn compute_check_to_variable(
         &mut self,
         detectors: ArrayView1<Bit>,
     ) -> &mut SparseBipartiteGraph<N> {
         let alpha = self.alpha();
+        let scale = self.data_scale_value;
+        // Field-level borrows: mutable on check_to_variable, immutable on the
+        // rest. These are disjoint fields, so the borrows can coexist.
+        let check_to_variable_data = self.check_to_variable.data_mut();
+        let variable_to_check_nnz_map = &self.variable_to_check_nnz_map;
 
         for (var_check_row_ind, var_check_row_vec) in
             self.variable_to_check.outer_iterator().enumerate()
         {
-            let row_sign = if detectors[var_check_row_ind] == 1 {
-                N::one().neg()
-            } else {
-                N::one()
-            };
-            let mut accumulated_sign = row_sign.is_negative();
-            let mut min_ind: usize = 0;
-            // True min message
-            let mut min_message = N::max_value();
-            // Next lowest min message to be used for self-exlusive min value
-            let mut second_min_message = N::max_value();
-
-            for (var_check_col_ind, var_check_col_val) in var_check_row_vec.iter() {
-                accumulated_sign ^= var_check_col_val.is_negative();
-                let abs_msg = var_check_col_val.abs();
-                if abs_msg <= min_message {
-                    second_min_message = min_message;
-                    min_message = abs_msg;
-                    min_ind = var_check_col_ind;
-                } else if abs_msg <= second_min_message {
-                    second_min_message = abs_msg
-                }
-            }
-
-            debug!("Variable messages for row {var_check_row_ind:?}: {var_check_row_vec:?}");
-
-            // Iterate over the row's storage indices
             let data_range = self
                 .variable_to_check
                 .indptr()
                 .outer_inds(var_check_row_ind);
+            let messages = &self.variable_to_check.data()[data_range.clone()];
+            let row_nnz_map = &variable_to_check_nnz_map[data_range.clone()];
 
-            for (ind, var_check_col_ind, var_check_col_val) in izip!(
-                data_range.clone(),
-                &self.variable_to_check.indices()[data_range.clone()],
-                &self.variable_to_check.data()[data_range.clone()]
-            ) {
-                // Extract the sign from the accumulated sign.
-                let check_to_variable_sign = accumulated_sign ^ var_check_col_val.is_negative();
-                let check_to_variable_min: N = if *var_check_col_ind != min_ind {
-                    min_message
+            if messages.is_empty() {
+                continue;
+            }
+
+            // Parity of the message signs. A single XOR per element
+            let mut accumulated_sign = detectors[var_check_row_ind] == 1;
+            for msg in messages {
+                accumulated_sign ^= msg.is_negative();
+            }
+
+            let (min_message, second_min_message) = Self::min_two_magnitudes(messages);
+
+            debug!("Variable messages for row {var_check_row_ind:?}: {var_check_row_vec:?}");
+
+            // Every outgoing message of this check takes one of exactly two
+            // magnitudes, so apply alpha -- and the optional fixed-point
+            // rescale, which used to be a separate pass over every nonzero of
+            // the whole matrix -- once per row instead of once per element.
+            // (alpha * mag) / scale element-wise is identical, including
+            // integer truncation, to computing it on the two row constants.
+            let mut out_min = alpha * min_message;
+            let mut out_second_min = alpha * second_min_message;
+            if let Some(scale_val) = scale {
+                out_min /= scale_val;
+                out_second_min /= scale_val;
+            }
+
+            // Write the messages. The minimum's position is found by
+            // value instead of by index: an incoming message whose magnitude
+            // equals the minimum receives the second minimum. If the minimum
+            // is duplicated, second_min == min, so every element receives the
+            // same value the index-tracking version produced.
+            for (map_ind, msg) in izip!(row_nnz_map, messages) {
+                let check_to_variable_sign = accumulated_sign ^ msg.is_negative();
+                let mut check_to_variable = if msg.abs() == min_message {
+                    out_second_min
                 } else {
-                    second_min_message
+                    out_min
                 };
-                // Copy the sign to the variable. check_to_variable_min is guranteed to be positive.
-                let mut check_to_variable = alpha * check_to_variable_min;
                 if check_to_variable_sign {
                     check_to_variable = check_to_variable.neg();
                 }
 
                 // We directly manipulate the indicies of the check_to_variable_matrix using
                 // the cached value map to avoid the need for a logarithmic insert
-                self.check_to_variable.data_mut()[self.variable_to_check_nnz_map[ind]] =
-                    check_to_variable;
+                check_to_variable_data[*map_ind] = check_to_variable;
             }
-        }
-
-        if let Some(scale_val) = self.data_scale_value {
-            self.check_to_variable /= scale_val
         }
 
         &mut self.check_to_variable

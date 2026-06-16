@@ -338,9 +338,11 @@ where
     /// This makes uses of the SIMD instructions more efficient. 
     #[inline]
     fn min_two_magnitudes(messages: &[N]) -> (N, N) {
-        #[cfg(target_feature = "avx2")]
-        const LANES: usize = 8;
-        #[cfg(not(target_feature = "avx2"))]
+
+        // Fix the number of lanes to 4 since Arm Neon registers are 128 bits wide.
+        // Although AVX2 registers are 256 bits wide, we still stick to 4 lanes since 
+        // qLDPC codes typically have a small number of check-node connectivity.
+        // Wider lanes would not provide significant benefits for the typical use case. 
         const LANES: usize = 4;
         let mut min1 = [N::max_value(); LANES];
         let mut min2 = [N::max_value(); LANES];

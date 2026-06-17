@@ -335,14 +335,13 @@ where
     /// updates. Unlike a single running (min, second_min, min_ind) triple,
     /// the lanes carry no dependency on each other, so the CPU can overlap
     /// iterations and LLVM can detect the vectorization opportunities.
-    /// This makes uses of the SIMD instructions more efficient. 
+    /// This makes uses of the SIMD instructions more efficient.
     #[inline]
     fn min_two_magnitudes(messages: &[N]) -> (N, N) {
-
         // Fix the number of lanes to 4 since Arm Neon registers are 128 bits wide.
-        // Although AVX2 registers are 256 bits wide, we still stick to 4 lanes since 
+        // Although AVX2 registers are 256 bits wide, we still stick to 4 lanes since
         // qLDPC codes typically have a small number of check-node connectivity.
-        // Wider lanes would not provide significant benefits for the typical use case. 
+        // Wider lanes would not provide significant benefits for the typical use case.
         const LANES: usize = 4;
         let mut min1 = [N::max_value(); LANES];
         let mut min2 = [N::max_value(); LANES];
@@ -352,11 +351,11 @@ where
         //   min2' = min(max(abs_msg, min1), min2)
         let mut chunks = messages.chunks_exact(LANES);
         for chunck in &mut chunks {
-            for k in 0..LANES{
+            for k in 0..LANES {
                 let abs_msg = chunck[k].abs();
                 let lo = if abs_msg < min1[k] { abs_msg } else { min1[k] };
                 let hi = if abs_msg < min1[k] { min1[k] } else { abs_msg };
-                
+
                 min1[k] = lo;
                 if hi < min2[k] {
                     min2[k] = hi;
@@ -378,7 +377,6 @@ where
         let mut min_message = N::max_value();
         let mut second_min_message = N::max_value();
         for k in 0..LANES {
-
             // lo = min(min1[k], min_message)
             // hi = max(min1[k], min_message)
             // second_min = min(hi, min2[k], second_min_message)

@@ -93,7 +93,7 @@ class CheckMatrices:
         if len(to_one):
             syndrome_bias = np.sum(self.check_matrix[:, to_one], axis=1).reshape(-1) % 2
             observables_bias = (
-                np.sum(self.check_matrix[:, to_one], axis=1).reshape(-1) % 2
+                np.sum(self.observables_matrix[:, to_one], axis=1).reshape(-1) % 2
             )
         else:
             syndrome_bias = None

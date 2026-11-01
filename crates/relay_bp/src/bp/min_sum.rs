@@ -382,8 +382,8 @@ where
         // Branchless two-smallest update:
         //   min1' = min(abs_msg, min1)
         //   min2' = min(max(abs_msg, min1), min2)
-        let mut chunks = messages.chunks_exact(LANES);
-        for chunck in &mut chunks {
+        let (chunks, remainder) = messages.as_chunks::<LANES>();
+        for chunck in chunks {
             for k in 0..LANES {
                 let abs_msg = chunck[k].abs();
                 let lo = if abs_msg < min1[k] { abs_msg } else { min1[k] };
@@ -396,7 +396,7 @@ where
             }
         }
 
-        for msg in chunks.remainder() {
+        for msg in remainder {
             let abs_msg = msg.abs();
             let lo = if abs_msg < min1[0] { abs_msg } else { min1[0] };
             let hi = if abs_msg < min1[0] { min1[0] } else { abs_msg };

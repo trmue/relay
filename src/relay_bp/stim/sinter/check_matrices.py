@@ -18,8 +18,8 @@ import numpy as np
 # We use belief matchings utilities to extract the decoding matrices
 from beliefmatching import detector_error_model_to_check_matrices
 
-# Priors in [1/2 - MAX_PRIOR_MARGIN, 1/2] are clamped to 1/2 - MAX_PRIOR_MARGIN. A prior of
-# exactly 1/2 has a log prior ratio of 0, which carries no sign and stalls min-sum BP.
+# Priors in [1/2 - MAX_PRIOR_MARGIN, 1/2] are clamped to 1/2 - MAX_PRIOR_MARGIN, so that every
+# log prior ratio has a sign.
 MAX_PRIOR_MARGIN = 1e-5
 
 
@@ -28,9 +28,15 @@ def combine_independent_priors(
 ) -> np.ndarray:
     """Combine the priors of independent mechanisms flipping the same error.
 
-    Row ``i`` of ``combine_matrix`` selects the mechanisms that flip error ``i``. The error
-    occurs if an odd number of them fire, ``(1 - prod(1 - 2 p_j)) / 2``. Summing the priors
-    instead can exceed 1 when several mechanisms are close to 1/2.
+    The error occurs if an odd number of its mechanisms fire, with probability
+    ``(1 - prod(1 - 2 p_j)) / 2``. The result is at most 1/2 for priors in ``[0, 1/2]``.
+
+    Args:
+        combine_matrix: Matrix whose row ``i`` selects the mechanisms that flip error ``i``.
+        priors: Prior of each mechanism.
+
+    Returns:
+        The prior of each error.
     """
     combine_matrix = csc_matrix(combine_matrix)
     combine_matrix.data = np.ones_like(combine_matrix.data, dtype=np.float64)
@@ -48,7 +54,15 @@ def combine_independent_priors(
 
 
 def clamp_priors(priors: np.ndarray, margin: float = MAX_PRIOR_MARGIN) -> np.ndarray:
-    """Clamp priors in ``[1/2 - margin, 1/2]`` to ``1/2 - margin``."""
+    """Clamp priors in ``[1/2 - margin, 1/2]`` to ``1/2 - margin``.
+
+    Args:
+        priors: Error priors.
+        margin: Distance below 1/2 that clamped priors are set to.
+
+    Returns:
+        A copy of ``priors`` with the clamped values.
+    """
     priors = np.array(priors, dtype=np.float64)
     priors[(priors > 0.5 - margin) & (priors <= 0.5)] = 0.5 - margin
     return priors
@@ -128,7 +142,7 @@ class CheckMatrices:
         to_one = np.argwhere(self.error_priors >= 1.0 - threshold).reshape(-1)
 
         if len(to_one):
-            # Sparse sums return a 2-D np.matrix, flatten to a 1-D ndarray
+            # Sparse sums return a 2-D np.matrix
             syndrome_bias = (
                 np.asarray(self.check_matrix[:, to_one].sum(axis=1)).reshape(-1) % 2
             ).astype(np.uint8)

@@ -35,11 +35,11 @@ pub struct MinSumDecoderConfig {
     pub int_bits: Option<isize>,
     pub frac_bits: Option<isize>,
     /// Optional floor on the magnitude of the log prior ratios, see
-    /// [`MIN_LOG_PRIOR_RATIO_MAGNITUDE`]. A prior of exactly 1/2 has a log prior ratio of 0,
-    /// which carries no sign. Min-sum messages take the minimum magnitude over a check, so
-    /// if such variables form a stopping set they never receive syndrome information.
-    /// Raising the magnitudes gives every prior a sign (0 maps to +floor). Off by default,
-    /// since a prior of 1/2 may be intended, e.g. for columns added by graph augmentation.
+    /// [`MIN_LOG_PRIOR_RATIO_MAGNITUDE`].
+    ///
+    /// Magnitudes below the floor are raised to it, keeping their sign, and 0 maps to +floor.
+    /// The floor is scaled by `data_scale_value` and is at least one LSB. Without it, priors of
+    /// exactly 1/2 that form a stopping set receive no syndrome information.
     pub min_log_prior_ratio: Option<f64>,
 }
 
@@ -144,8 +144,7 @@ where
             None => None,
         };
 
-        // The floor is kept in scaled units and is at least one LSB of fixed point or integer
-        // types, so it cannot round to 0
+        // Scale the floor and keep it at least one LSB
         let min_log_prior_ratio = config
             .min_log_prior_ratio
             .filter(|val| *val != 0.0)
@@ -634,7 +633,7 @@ where
         }
     }
 
-    /// Raise the magnitude of value to at least min_val, mapping 0 to +min_val
+    /// Raise the magnitude of value to at least min_val, mapping 0 to +min_val.
     fn floor_value_magnitude(value: N, min_val: Option<N>) -> N {
         match min_val {
             Some(min_val) if value.abs() < min_val => {
@@ -931,8 +930,6 @@ mod tests {
     fn decode_half_priors_stopping_set() {
         init();
 
-        // Without a floor the log prior ratios stay exactly 0 and no syndrome information
-        // reaches the columns
         let result = decode_half_priors::<f64>(Default::default());
         assert_eq!(result.decoding, array![1, 1, 1]);
         assert!(!result.success);
@@ -949,7 +946,7 @@ mod tests {
     fn decode_half_priors_stopping_set_int() {
         init();
 
-        // The scaled floor rounds to 0 for integers and is raised to one LSB
+        // A scaled floor of 1.6e-4 is raised to one LSB
         let result = decode_half_priors::<isize>(MinSumDecoderConfig {
             max_data_value: Some(127.0),
             data_scale_value: Some(4.0),
@@ -1000,9 +997,8 @@ mod tests {
     fn decode_augmented_column_half_prior() {
         init();
 
-        // Graph augmentation (GARI) adds columns with a prior of exactly 1/2, here column 3
-        // next to column 2. It shares checks with informative columns, so it is not a
-        // stopping set and decodes with its log prior ratio left at 0.
+        // Column 3 has a prior of 1/2, as added by graph augmentation (GARI), and shares a
+        // check with column 0 and column 2
         let check_matrix: SparseBipartiteGraph<_> =
             SparseBipartiteGraph::from_dense(array![[1, 0, 1, 1], [1, 1, 0, 0]]);
         let arc_check_matrix = Arc::new(check_matrix);
@@ -1023,7 +1019,6 @@ mod tests {
             }),
         );
 
-        // Column 3 costs nothing, so columns 1 and 3 explain [1, 1] better than column 0
         for (detectors, error) in [
             (array![0, 0], array![0, 0, 0, 0]),
             (array![1, 1], array![0, 1, 0, 1]),

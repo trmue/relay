@@ -45,7 +45,7 @@ def test_decode_detailed_batch(repetition_code_config_fixed):
 
 
 def test_decode_priors_of_one_half():
-    """In fixed point the floor is at least one LSB, so it cannot round to 0."""
+    """A min_log_prior_ratio below one LSB decodes a stopping set of priors 1/2."""
     decoder = relay_bp.MinSumBPDecoderFixed(
         np.ones((1, 3), dtype=np.uint8),
         error_priors=np.array([0.5, 0.5, 0.5]),

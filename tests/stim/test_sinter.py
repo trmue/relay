@@ -67,7 +67,16 @@ def test_check_matrix_pruning():
 def _circuit_with_randomized_qubit(
     distance: int, qubit: int, tick: int
 ) -> stim.Circuit:
-    """Fully depolarize a single qubit after one TICK, a crude model of leakage."""
+    """Build a surface code circuit with one qubit fully depolarized after one tick.
+
+    Args:
+        distance: Code distance and number of rounds.
+        qubit: Qubit to depolarize.
+        tick: Number of the tick after which the qubit is depolarized.
+
+    Returns:
+        The circuit.
+    """
     circuit = stim.Circuit.generated(
         rounds=distance,
         distance=distance,
@@ -87,7 +96,7 @@ def _circuit_with_randomized_qubit(
 
 
 def test_check_matrix_priors_combined_and_clamped():
-    """Priors of mechanisms sharing an edge combine to at most 1/2 rather than summing."""
+    """Combined edge priors lie in (0, 1/2), nothing is pruned, and decoding succeeds."""
     circuit = _circuit_with_randomized_qubit(distance=3, qubit=8, tick=10)
     dem = circuit.detector_error_model(
         decompose_errors=True, approximate_disjoint_errors=True
@@ -107,6 +116,7 @@ def test_check_matrix_priors_combined_and_clamped():
 
 
 def test_combine_independent_priors():
+    """Priors combine as the probability of an odd number of mechanisms firing."""
     combine_matrix = csc_matrix(np.array([[1, 0, 1], [0, 1, 1], [1, 1, 1]]))
     combined = combine_independent_priors(combine_matrix, np.array([0.1, 0.5, 0.2]))
     assert np.allclose(combined, [0.1 * 0.8 + 0.9 * 0.2, 0.5, 0.5])
@@ -114,7 +124,6 @@ def test_combine_independent_priors():
     combined = combine_independent_priors(combine_matrix, np.array([0.1, 0.0, 0.2]))
     assert np.allclose(combined, [0.26, 0.2, 0.26])
 
-    # Mechanisms close to 1/2 never combine above 1/2
     combined = combine_independent_priors(combine_matrix, np.array([0.45, 0.48, 0.49]))
     assert np.all(combined < 0.5)
 

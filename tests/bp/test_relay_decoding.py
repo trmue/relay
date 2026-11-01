@@ -63,7 +63,7 @@ def test_decode_detailed_batch(repetition_code_config):
 
 
 def test_decode_priors_of_one_half():
-    """Priors of exactly 1/2 forming a stopping set decode with min_log_prior_ratio."""
+    """A stopping set of priors 1/2 fails without min_log_prior_ratio and decodes with it."""
     check_matrix = np.ones((1, 3), dtype=np.uint8)
     config = dict(
         error_priors=np.array([0.5, 0.5, 0.5]),
@@ -74,7 +74,6 @@ def test_decode_priors_of_one_half():
         stop_nconv=3,
     )
 
-    # A log prior ratio of 0 carries no sign, so no syndrome information reaches the columns
     decoder = relay_bp.RelayDecoderF32(check_matrix, **config)
     result = decoder.decode_detailed(np.array([0], dtype=np.uint8))
     assert not result.success

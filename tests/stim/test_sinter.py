@@ -9,6 +9,7 @@
 # that they have been altered from the originals.
 
 import numpy as np
+from scipy.sparse import csc_matrix
 import pathlib
 import sinter
 import stim
@@ -19,6 +20,7 @@ from relay_bp.stim import (
     sinter_decoders,
     CheckMatrices,
 )
+from relay_bp.stim.sinter.check_matrices import combine_independent_priors
 
 from testdata import (
     get_test_circuit,
@@ -60,6 +62,76 @@ def test_check_matrix_pruning():
         check_matrices.observables_matrix.shape[1]
         > check_matrices_pruned.observables_matrix.shape[1]
     )
+
+
+def _circuit_with_randomized_qubit(
+    distance: int, qubit: int, tick: int
+) -> stim.Circuit:
+    """Fully depolarize a single qubit after one TICK, a crude model of leakage."""
+    circuit = stim.Circuit.generated(
+        rounds=distance,
+        distance=distance,
+        after_clifford_depolarization=0.003,
+        before_measure_flip_probability=0.003,
+        code_task="surface_code:rotated_memory_z",
+    )
+    randomized = stim.Circuit()
+    ticks = 0
+    for instruction in circuit.flattened():
+        randomized.append(instruction)
+        if instruction.name == "TICK":
+            ticks += 1
+            if ticks == tick:
+                randomized.append("DEPOLARIZE1", [qubit], 0.75)
+    return randomized
+
+
+def test_check_matrix_priors_combined_and_clamped():
+    """Priors of mechanisms sharing an edge combine to at most 1/2 rather than summing."""
+    circuit = _circuit_with_randomized_qubit(distance=3, qubit=8, tick=10)
+    dem = circuit.detector_error_model(
+        decompose_errors=True, approximate_disjoint_errors=True
+    )
+
+    check_matrices = CheckMatrices.from_dem(dem, decomposed_hyperedges=True)
+    assert np.all(check_matrices.error_priors > 0.0)
+    assert np.all(check_matrices.error_priors < 0.5)
+    assert check_matrices.syndrome_bias is None
+
+    decoder = SinterDecoder_RelayBP().compile_decoder_for_dem(dem=dem)
+    shots, observables = circuit.compile_detector_sampler(seed=0).sample(
+        200, separate_observables=True, bit_packed=True
+    )
+    predictions = decoder.decode_shots_bit_packed(bit_packed_detection_event_data=shots)
+    assert np.mean(np.any(predictions != observables, axis=1)) < 0.1
+
+
+def test_combine_independent_priors():
+    combine_matrix = csc_matrix(np.array([[1, 0, 1], [0, 1, 1], [1, 1, 1]]))
+    combined = combine_independent_priors(combine_matrix, np.array([0.1, 0.5, 0.2]))
+    assert np.allclose(combined, [0.1 * 0.8 + 0.9 * 0.2, 0.5, 0.5])
+
+    combined = combine_independent_priors(combine_matrix, np.array([0.1, 0.0, 0.2]))
+    assert np.allclose(combined, [0.26, 0.2, 0.26])
+
+    # Mechanisms close to 1/2 never combine above 1/2
+    combined = combine_independent_priors(combine_matrix, np.array([0.45, 0.48, 0.49]))
+    assert np.all(combined < 0.5)
+
+
+def test_check_matrix_decided_error_bias():
+    """Biases from decided errors are 1-D uint8 arrays."""
+    check_matrices = CheckMatrices(
+        check_matrix=csc_matrix(np.array([[1, 1, 0], [0, 1, 1]], dtype=np.uint8)),
+        observables_matrix=csc_matrix(np.array([[1, 0, 1]], dtype=np.uint8)),
+        error_priors=np.array([1.0, 0.1, 0.1]),
+    ).prune_decided_errors()
+
+    assert isinstance(check_matrices.syndrome_bias, np.ndarray)
+    assert check_matrices.syndrome_bias.dtype == np.uint8
+    assert np.all(check_matrices.syndrome_bias == np.array([1, 0]))
+    assert np.all(check_matrices.observables_bias == np.array([1]))
+    assert check_matrices.check_matrix.shape == (2, 2)
 
 
 def test_sinter_relay_bp_decoder_integration():

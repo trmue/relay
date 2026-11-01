@@ -20,6 +20,9 @@ use sprs::CsMatView;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+/// Smallest magnitude of a log prior ratio, ln((1/2 + 1e-5) / (1/2 - 1e-5)).
+pub const MIN_LOG_PRIOR_RATIO_MAGNITUDE: f64 = 4e-5;
+
 #[derive(Clone, Debug)]
 pub struct MinSumDecoderConfig {
     pub error_priors: Array1<f64>,
@@ -132,6 +135,17 @@ where
             None => None,
         };
 
+        // A prior of exactly 1/2 gives a log prior ratio of 0, which carries no sign. Min-sum
+        // messages take the minimum magnitude over a check, so a zero silences the check and
+        // erased variables forming a stopping set never receive syndrome information.
+        // Floor magnitudes so every prior keeps a sign (at least one LSB for fixed point).
+        let mut min_magnitude =
+            MIN_LOG_PRIOR_RATIO_MAGNITUDE * config.data_scale_value.unwrap_or(1.0);
+        if let Some(frac_bits) = config.frac_bits {
+            min_magnitude = min_magnitude.max(2f64.powi(-(frac_bits as i32)));
+        }
+        let min_magnitude = N::from_f64(min_magnitude).unwrap();
+
         let log_prior_ratios = config.log_prior_ratios().mapv_into_any(|val| {
             let updated_val = match val {
                 f64::INFINITY => N::max_value(),
@@ -141,7 +155,14 @@ where
                         Some(scale_value) => scale_value * val,
                         None => val,
                     };
-                    N::from_f64(prior).unwrap()
+                    let prior = N::from_f64(prior).unwrap();
+                    if prior.abs() >= min_magnitude {
+                        prior
+                    } else if prior < N::zero() {
+                        min_magnitude.neg()
+                    } else {
+                        min_magnitude
+                    }
                 }
             };
 
@@ -615,7 +636,7 @@ where
 
     fn compute_hard_decision(&mut self) {
         for (idx, posterior) in self.posterior_ratios.iter().enumerate() {
-            self.decoding[idx] = Bit::from((*posterior) <= N::zero());
+            self.decoding[idx] = Bit::from((*posterior) < N::zero());
         }
         debug!("Posteriors: {:?}", self.posterior_ratios);
         debug!("Hard decision: {:?}", self.decoding);

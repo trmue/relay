@@ -60,3 +60,21 @@ def test_decode_detailed_batch(repetition_code_config):
     result2 = results[2]
     assert result2.success
     assert np.all(result2.decoding == np.array([0, 0, 1]))
+
+
+def test_decode_priors_of_one_half():
+    """Priors of exactly 1/2 have a log prior ratio of 0 and must not stall decoding."""
+    check_matrix = np.ones((1, 3), dtype=np.uint8)
+    decoder = relay_bp.RelayDecoderF32(
+        check_matrix,
+        error_priors=np.array([0.5, 0.5, 0.5]),
+        gamma0=0.1,
+        pre_iter=80,
+        num_sets=60,
+        set_max_iter=60,
+        stop_nconv=3,
+    )
+
+    result = decoder.decode_detailed(np.array([0], dtype=np.uint8))
+    assert result.success
+    assert np.all(result.decoding == np.array([0, 0, 0]))

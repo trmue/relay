@@ -25,7 +25,7 @@ pub struct MinSumBPDecoderFixed {}
 #[pymethods]
 impl MinSumBPDecoderFixed {
     #[new]
-    #[pyo3(signature = (check_matrix, error_priors, max_iter=200, alpha=None, alpha_iteration_scaling_factor=1.0, gamma0=None, data_scale_value=None, max_data_value=None, int_bits=None, frac_bits=None))]
+    #[pyo3(signature = (check_matrix, error_priors, max_iter=200, alpha=None, alpha_iteration_scaling_factor=1.0, gamma0=None, data_scale_value=None, max_data_value=None, int_bits=None, frac_bits=None, min_log_prior_ratio=None))]
     #[allow(clippy::missing_transmute_annotations, clippy::too_many_arguments)]
     pub fn new(
         py: Python<'_>,
@@ -39,6 +39,7 @@ impl MinSumBPDecoderFixed {
         max_data_value: Option<f64>,
         int_bits: Option<isize>,
         frac_bits: Option<isize>,
+        min_log_prior_ratio: Option<f64>,
     ) -> PyResult<(Self, DynDecoder)> {
         let min_sum_decoder = Self {};
 
@@ -52,6 +53,7 @@ impl MinSumBPDecoderFixed {
             max_data_value,
             int_bits,
             frac_bits,
+            min_log_prior_ratio,
         };
 
         let inner_decoder = MinSumBPDecoderFixedInner::new(

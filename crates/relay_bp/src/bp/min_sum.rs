@@ -20,6 +20,9 @@ use sprs::CsMatView;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+/// Suggested `min_log_prior_ratio`, ln((1/2 + 1e-5) / (1/2 - 1e-5)).
+pub const MIN_LOG_PRIOR_RATIO_MAGNITUDE: f64 = 4e-5;
+
 #[derive(Clone, Debug)]
 pub struct MinSumDecoderConfig {
     pub error_priors: Array1<f64>,
@@ -31,6 +34,13 @@ pub struct MinSumDecoderConfig {
     pub max_data_value: Option<f64>,
     pub int_bits: Option<isize>,
     pub frac_bits: Option<isize>,
+    /// Optional floor on the magnitude of the log prior ratios, see
+    /// [`MIN_LOG_PRIOR_RATIO_MAGNITUDE`].
+    ///
+    /// Magnitudes below the floor are raised to it, keeping their sign, and 0 maps to +floor.
+    /// The floor is scaled by `data_scale_value` and is at least one LSB. Without it, priors of
+    /// exactly 1/2 that form a stopping set receive no syndrome information.
+    pub min_log_prior_ratio: Option<f64>,
 }
 
 impl Default for MinSumDecoderConfig {
@@ -45,6 +55,7 @@ impl Default for MinSumDecoderConfig {
             max_data_value: None,
             int_bits: None,
             frac_bits: None,
+            min_log_prior_ratio: None,
         }
     }
 }
@@ -88,6 +99,7 @@ pub struct MinSumBPDecoder<N: PartialEq + Default + Clone + Copy> {
     decoding: Array1<Bit>,
     max_data_value: Option<N>,
     data_scale_value: Option<N>,
+    min_log_prior_ratio: Option<N>,
     pub current_iteration: usize,
 }
 
@@ -132,6 +144,23 @@ where
             None => None,
         };
 
+        // Scale the floor and keep it at least one LSB
+        let min_log_prior_ratio = config
+            .min_log_prior_ratio
+            .filter(|val| *val != 0.0)
+            .map(|val| {
+                let mut val = val.abs() * config.data_scale_value.unwrap_or(1.0);
+                if let Some(frac_bits) = config.frac_bits {
+                    val = val.max(2f64.powi(-(frac_bits as i32)));
+                }
+                let val = N::from_f64(val).unwrap();
+                if val == N::zero() {
+                    N::one()
+                } else {
+                    val
+                }
+            });
+
         let log_prior_ratios = config.log_prior_ratios().mapv_into_any(|val| {
             let updated_val = match val {
                 f64::INFINITY => N::max_value(),
@@ -141,7 +170,7 @@ where
                         Some(scale_value) => scale_value * val,
                         None => val,
                     };
-                    N::from_f64(prior).unwrap()
+                    Self::floor_value_magnitude(N::from_f64(prior).unwrap(), min_log_prior_ratio)
                 }
             };
 
@@ -175,26 +204,30 @@ where
             decoding,
             max_data_value,
             data_scale_value,
+            min_log_prior_ratio,
             current_iteration: 0,
         }
     }
 
     pub fn set_log_prior_ratio(&mut self, mut log_prior_ratios: Array1<N>) {
-        self.log_prior_ratios = match self.data_scale_value {
-            Some(scale_val) => {
-                log_prior_ratios.iter_mut().for_each(|v| *v *= scale_val);
-                log_prior_ratios
+        let min_val = self.min_log_prior_ratio;
+        log_prior_ratios.iter_mut().for_each(|v| {
+            if let Some(scale_val) = self.data_scale_value {
+                *v *= scale_val;
             }
-            None => log_prior_ratios,
-        };
+            *v = Self::floor_value_magnitude(*v, min_val);
+        });
+        self.log_prior_ratios = log_prior_ratios;
     }
 
     pub fn set_log_prior_ratio_f64(&mut self, log_prior_ratios: Array1<f64>) {
+        let min_val = self.min_log_prior_ratio;
         self.log_prior_ratios = match self.config.data_scale_value {
-            Some(scale_val) => {
-                log_prior_ratios.mapv_into_any(|v| N::from_f64(scale_val * v).unwrap())
-            }
-            None => log_prior_ratios.mapv_into_any(|v| N::from_f64(v).unwrap()),
+            Some(scale_val) => log_prior_ratios.mapv_into_any(|v| {
+                Self::floor_value_magnitude(N::from_f64(scale_val * v).unwrap(), min_val)
+            }),
+            None => log_prior_ratios
+                .mapv_into_any(|v| Self::floor_value_magnitude(N::from_f64(v).unwrap(), min_val)),
         };
     }
 
@@ -349,8 +382,8 @@ where
         // Branchless two-smallest update:
         //   min1' = min(abs_msg, min1)
         //   min2' = min(max(abs_msg, min1), min2)
-        let mut chunks = messages.chunks_exact(LANES);
-        for chunck in &mut chunks {
+        let (chunks, remainder) = messages.as_chunks::<LANES>();
+        for chunck in chunks {
             for k in 0..LANES {
                 let abs_msg = chunck[k].abs();
                 let lo = if abs_msg < min1[k] { abs_msg } else { min1[k] };
@@ -363,7 +396,7 @@ where
             }
         }
 
-        for msg in chunks.remainder() {
+        for msg in remainder {
             let abs_msg = msg.abs();
             let lo = if abs_msg < min1[0] { abs_msg } else { min1[0] };
             let hi = if abs_msg < min1[0] { min1[0] } else { abs_msg };
@@ -597,6 +630,20 @@ where
             self.posterior_ratios
                 .iter_mut()
                 .for_each(|v| *v = Self::bound_value_magnitude(*v, max_val));
+        }
+    }
+
+    /// Raise the magnitude of value to at least min_val, mapping 0 to +min_val.
+    fn floor_value_magnitude(value: N, min_val: Option<N>) -> N {
+        match min_val {
+            Some(min_val) if value.abs() < min_val => {
+                if value < N::zero() {
+                    min_val.neg()
+                } else {
+                    min_val
+                }
+            }
+            _ => value,
         }
     }
 
@@ -856,6 +903,134 @@ mod tests {
         assert_eq!(result.decoded_detectors, detectors);
         assert_eq!(result.max_iter, iterations);
         assert!(result.success);
+    }
+
+    /// One check over three columns with a prior of exactly 1/2, the smallest stopping set.
+    fn decode_half_priors<N>(config: MinSumDecoderConfig) -> DecodeResult
+    where
+        MinSumBPDecoder<N>: Decoder,
+        N: PartialEq + Default + Clone + Copy + Signed + Bounded + FromPrimitive,
+        N: ToPrimitive + std::cmp::PartialOrd + std::ops::AddAssign + std::ops::DivAssign,
+        N: std::ops::Mul<N> + std::ops::MulAssign + Debug + Send + Sync + 'static,
+        N: std::fmt::Display,
+    {
+        let check_matrix: SparseBipartiteGraph<_> =
+            SparseBipartiteGraph::from_dense(array![[1, 1, 1]]);
+        let config = MinSumDecoderConfig {
+            error_priors: array![0.5, 0.5, 0.5],
+            max_iter: 10,
+            ..config
+        };
+        let mut decoder: MinSumBPDecoder<N> =
+            MinSumBPDecoder::new(Arc::new(check_matrix), Arc::new(config));
+        decoder.decode_detailed(array![0].view())
+    }
+
+    #[test]
+    fn decode_half_priors_stopping_set() {
+        init();
+
+        let result = decode_half_priors::<f64>(Default::default());
+        assert_eq!(result.decoding, array![1, 1, 1]);
+        assert!(!result.success);
+
+        let result = decode_half_priors::<f64>(MinSumDecoderConfig {
+            min_log_prior_ratio: Some(MIN_LOG_PRIOR_RATIO_MAGNITUDE),
+            ..Default::default()
+        });
+        assert_eq!(result.decoding, array![0, 0, 0]);
+        assert!(result.success);
+    }
+
+    #[test]
+    fn decode_half_priors_stopping_set_int() {
+        init();
+
+        // A scaled floor of 1.6e-4 is raised to one LSB
+        let result = decode_half_priors::<isize>(MinSumDecoderConfig {
+            max_data_value: Some(127.0),
+            data_scale_value: Some(4.0),
+            min_log_prior_ratio: Some(MIN_LOG_PRIOR_RATIO_MAGNITUDE),
+            ..Default::default()
+        });
+        assert_eq!(result.decoding, array![0, 0, 0]);
+        assert!(result.success);
+    }
+
+    #[test]
+    fn set_log_prior_ratio_applies_floor() {
+        init();
+
+        let check_matrix: SparseBipartiteGraph<_> =
+            SparseBipartiteGraph::from_dense(array![[1, 1, 1]]);
+        let config = MinSumDecoderConfig {
+            error_priors: array![0.1, 0.1, 0.1],
+            max_iter: 10,
+            min_log_prior_ratio: Some(MIN_LOG_PRIOR_RATIO_MAGNITUDE),
+            ..Default::default()
+        };
+        let mut decoder: MinSumBPDecoder<f64> =
+            MinSumBPDecoder::new(Arc::new(check_matrix), Arc::new(config));
+
+        decoder.set_log_prior_ratio_f64(array![0.0, -1e-6, 1.0]);
+        assert_eq!(
+            decoder.log_prior_ratios,
+            array![
+                MIN_LOG_PRIOR_RATIO_MAGNITUDE,
+                -MIN_LOG_PRIOR_RATIO_MAGNITUDE,
+                1.0
+            ]
+        );
+
+        decoder.set_log_prior_ratio(array![0.0, 1e-6, -1.0]);
+        assert_eq!(
+            decoder.log_prior_ratios,
+            array![
+                MIN_LOG_PRIOR_RATIO_MAGNITUDE,
+                MIN_LOG_PRIOR_RATIO_MAGNITUDE,
+                -1.0
+            ]
+        );
+    }
+
+    #[test]
+    fn decode_augmented_column_half_prior() {
+        init();
+
+        // Column 3 has a prior of 1/2, as added by graph augmentation (GARI), and shares a
+        // check with column 0 and column 2
+        let check_matrix: SparseBipartiteGraph<_> =
+            SparseBipartiteGraph::from_dense(array![[1, 0, 1, 1], [1, 1, 0, 0]]);
+        let arc_check_matrix = Arc::new(check_matrix);
+        let config = MinSumDecoderConfig {
+            error_priors: array![0.01, 0.02, 0.03, 0.5],
+            max_iter: 10,
+            ..Default::default()
+        };
+        let mut decoder: MinSumBPDecoder<f64> =
+            MinSumBPDecoder::new(arc_check_matrix.clone(), Arc::new(config.clone()));
+        assert_eq!(decoder.log_prior_ratios[3], 0.0);
+
+        let mut floored_decoder: MinSumBPDecoder<f64> = MinSumBPDecoder::new(
+            arc_check_matrix,
+            Arc::new(MinSumDecoderConfig {
+                min_log_prior_ratio: Some(MIN_LOG_PRIOR_RATIO_MAGNITUDE),
+                ..config
+            }),
+        );
+
+        for (detectors, error) in [
+            (array![0, 0], array![0, 0, 0, 0]),
+            (array![1, 1], array![0, 1, 0, 1]),
+            (array![1, 0], array![0, 0, 0, 1]),
+            (array![0, 1], array![0, 1, 0, 0]),
+        ] {
+            for decoder in [&mut decoder, &mut floored_decoder] {
+                let result = decoder.decode_detailed(detectors.view());
+                assert_eq!(result.decoding, error);
+                assert!(result.success);
+            }
+        }
     }
 
     #[test]

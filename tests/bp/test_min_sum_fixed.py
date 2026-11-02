@@ -42,3 +42,18 @@ def test_decode_detailed_batch(repetition_code_config_fixed):
     result2 = results[2]
     assert result2.success
     assert np.all(result2.decoding == np.array([0, 0, 1]))
+
+
+def test_decode_priors_of_one_half():
+    """A min_log_prior_ratio below one LSB decodes a stopping set of priors 1/2."""
+    decoder = relay_bp.MinSumBPDecoderFixed(
+        np.ones((1, 3), dtype=np.uint8),
+        error_priors=np.array([0.5, 0.5, 0.5]),
+        int_bits=5,
+        frac_bits=2,
+        min_log_prior_ratio=4e-5,
+    )
+
+    result = decoder.decode_detailed(np.array([0], dtype=np.uint8))
+    assert result.success
+    assert np.all(result.decoding == np.array([0, 0, 0]))

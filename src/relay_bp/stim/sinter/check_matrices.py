@@ -18,6 +18,55 @@ import numpy as np
 # We use belief matchings utilities to extract the decoding matrices
 from beliefmatching import detector_error_model_to_check_matrices
 
+# Priors in [1/2 - MAX_PRIOR_MARGIN, 1/2] are clamped to 1/2 - MAX_PRIOR_MARGIN, so that every
+# log prior ratio has a sign.
+MAX_PRIOR_MARGIN = 1e-5
+
+
+def combine_independent_priors(
+    combine_matrix: csc_matrix, priors: np.ndarray
+) -> np.ndarray:
+    """Combine the priors of independent mechanisms flipping the same error.
+
+    The error occurs if an odd number of its mechanisms fire, with probability
+    ``(1 - prod(1 - 2 p_j)) / 2``. The result is at most 1/2 for priors in ``[0, 1/2]``.
+
+    Args:
+        combine_matrix: Matrix whose row ``i`` selects the mechanisms that flip error ``i``.
+        priors: Prior of each mechanism.
+
+    Returns:
+        The prior of each error.
+    """
+    combine_matrix = csc_matrix(combine_matrix)
+    combine_matrix.data = np.ones_like(combine_matrix.data, dtype=np.float64)
+    factors = 1.0 - 2.0 * np.asarray(priors, dtype=np.float64)
+    is_zero = factors == 0.0
+    is_negative = factors < 0.0
+    with np.errstate(divide="ignore"):
+        log_magnitudes = np.where(is_zero, 0.0, np.log(np.abs(factors)))
+    num_zero = combine_matrix @ is_zero.astype(np.float64)
+    num_negative = combine_matrix @ is_negative.astype(np.float64)
+    product = np.exp(combine_matrix @ log_magnitudes)
+    product = np.where(num_negative % 2 == 1, -product, product)
+    product = np.where(num_zero > 0, 0.0, product)
+    return (1.0 - product) / 2.0
+
+
+def clamp_priors(priors: np.ndarray, margin: float = MAX_PRIOR_MARGIN) -> np.ndarray:
+    """Clamp priors in ``[1/2 - margin, 1/2]`` to ``1/2 - margin``.
+
+    Args:
+        priors: Error priors.
+        margin: Distance below 1/2 that clamped priors are set to.
+
+    Returns:
+        A copy of ``priors`` with the clamped values.
+    """
+    priors = np.array(priors, dtype=np.float64)
+    priors[(priors > 0.5 - margin) & (priors <= 0.5)] = 0.5 - margin
+    return priors
+
 
 @dataclass
 class CheckMatrices:
@@ -65,7 +114,9 @@ class CheckMatrices:
         if decomposed_hyperedges:
             observables_matrix = dem_matrices.edge_observables_matrix
             check_matrix = dem_matrices.edge_check_matrix
-            error_priors = dem_matrices.hyperedge_to_edge_matrix @ dem_matrices.priors
+            error_priors = combine_independent_priors(
+                dem_matrices.hyperedge_to_edge_matrix, dem_matrices.priors
+            )
         else:
             observables_matrix = dem_matrices.observables_matrix
             check_matrix = dem_matrices.check_matrix
@@ -74,7 +125,7 @@ class CheckMatrices:
         check_matrices = cls(
             check_matrix=check_matrix,
             observables_matrix=observables_matrix,
-            error_priors=error_priors.astype(np.float64),
+            error_priors=clamp_priors(error_priors),
         )
         if prune_decided_errors:
             check_matrices = check_matrices.prune_decided_errors(threshold=threshold)
@@ -91,10 +142,14 @@ class CheckMatrices:
         to_one = np.argwhere(self.error_priors >= 1.0 - threshold).reshape(-1)
 
         if len(to_one):
-            syndrome_bias = np.sum(self.check_matrix[:, to_one], axis=1).reshape(-1) % 2
+            # Sparse sums return a 2-D np.matrix
+            syndrome_bias = (
+                np.asarray(self.check_matrix[:, to_one].sum(axis=1)).reshape(-1) % 2
+            ).astype(np.uint8)
             observables_bias = (
-                np.sum(self.observables_matrix[:, to_one], axis=1).reshape(-1) % 2
-            )
+                np.asarray(self.observables_matrix[:, to_one].sum(axis=1)).reshape(-1)
+                % 2
+            ).astype(np.uint8)
         else:
             syndrome_bias = None
             observables_bias = None

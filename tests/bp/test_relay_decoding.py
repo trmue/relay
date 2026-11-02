@@ -60,3 +60,25 @@ def test_decode_detailed_batch(repetition_code_config):
     result2 = results[2]
     assert result2.success
     assert np.all(result2.decoding == np.array([0, 0, 1]))
+
+
+def test_decode_priors_of_one_half():
+    """A stopping set of priors 1/2 fails without min_log_prior_ratio and decodes with it."""
+    check_matrix = np.ones((1, 3), dtype=np.uint8)
+    config = dict(
+        error_priors=np.array([0.5, 0.5, 0.5]),
+        gamma0=0.1,
+        pre_iter=80,
+        num_sets=60,
+        set_max_iter=60,
+        stop_nconv=3,
+    )
+
+    decoder = relay_bp.RelayDecoderF32(check_matrix, **config)
+    result = decoder.decode_detailed(np.array([0], dtype=np.uint8))
+    assert not result.success
+
+    decoder = relay_bp.RelayDecoderF32(check_matrix, **config, min_log_prior_ratio=4e-5)
+    result = decoder.decode_detailed(np.array([0], dtype=np.uint8))
+    assert result.success
+    assert np.all(result.decoding == np.array([0, 0, 0]))

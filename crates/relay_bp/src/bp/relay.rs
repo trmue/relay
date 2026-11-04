@@ -287,6 +287,11 @@ where
         let mut total_iterations: usize = 0;
         self.num_executed_sets = 0;
         let stopping_criterion = self.relay_config.stopping_criterion.clone();
+        // Draw each decode's memory strengths from a freshly seeded generator, so a decoding
+        // depends only on its own detectors: serial batches, parallel batches (which clone
+        // the decoder) and a newly built decoder then agree.
+        self.posterior_update_state.rng_std =
+            rand::rngs::StdRng::seed_from_u64(self.relay_config.seed);
 
         // First Mem-BP
         self.bp_decoder.initialize_decoder();
@@ -541,6 +546,67 @@ mod tests {
         );
 
         assert_eq!(results[0].decoding.len(), 8785);
+    }
+
+    // A decoding must not depend on which shots were decoded before it: a serial batch, the
+    // same batch reversed, a parallel batch and a new decoder per shot must all agree.
+    #[test]
+    fn decode_independent_of_batch_order() {
+        let resources = get_test_data_path();
+        let code_144_12_12 =
+            DetectorErrorModel::load(resources.join("144_12_12")).expect("Unable to load the code");
+        let detectors_144_12_12: Array2<Bit> =
+            read_npy(resources.join("144_12_12_detectors.npy")).expect("Unable to open file");
+        let bp_config = Arc::new(MinSumDecoderConfig {
+            error_priors: code_144_12_12.error_priors,
+            max_iter: 200,
+            alpha: None,
+            alpha_iteration_scaling_factor: 0.,
+            gamma0: Some(0.9),
+            ..Default::default()
+        });
+        // Random memory strengths, and more than one solution requested, so every shot runs
+        // Relay legs and draws from the generator.
+        let relay_config = Arc::new(RelayDecoderConfig {
+            num_sets: 20,
+            stopping_criterion: StoppingCriterion::NConv { stop_after: 3 },
+            ..Default::default()
+        });
+        let check_matrix = Arc::new(code_144_12_12.detector_error_matrix);
+        let new_decoder = || -> RelayDecoder<f64> {
+            RelayDecoder::new(
+                check_matrix.clone(),
+                bp_config.clone(),
+                relay_config.clone(),
+            )
+        };
+        let shots = detectors_144_12_12.slice(s![..20, ..]);
+
+        let fresh: Vec<DecodeResult> = shots
+            .axis_iter(Axis(0))
+            .map(|row| new_decoder().decode_detailed(row))
+            .collect();
+        let serial = new_decoder().decode_detailed_batch(shots);
+        let mut reversed = new_decoder().decode_detailed_batch(shots.slice(s![..;-1, ..]));
+        reversed.reverse();
+        let parallel = new_decoder().par_decode_detailed_batch(shots);
+
+        for (i, expected) in fresh.iter().enumerate() {
+            for (name, result) in [
+                ("serial", &serial[i]),
+                ("reversed", &reversed[i]),
+                ("parallel", &parallel[i]),
+            ] {
+                assert_eq!(
+                    result.decoding, expected.decoding,
+                    "{name} decoding of shot {i}"
+                );
+                assert_eq!(
+                    result.iterations, expected.iterations,
+                    "{name} iterations of shot {i}"
+                );
+            }
+        }
     }
 
     // Basic test where Relay runs 40 sets

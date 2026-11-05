@@ -200,6 +200,7 @@ Below we summarize the parameters impacting decoding and runtime performance:
 - `gamma_dist_interval`: The uniform distribution range to select uniformly random memory weights over. The performance of Relay-BP is highly sensitive to this value and should be tuned as in the code analysis [notebooks](./examples/).
 - `explicit_gammas`: Instead of selecting gammas from a uniform distribution they may be specified for each error variable. This is a 2D array of `np.float64` of shape `(num_sets, num_errors)`.
 - `stop_nconv`: How many Relay ensemble solutions to find before terminating. Setting this value greater than one can better explore the solution space to improve decoding performance at the cost of running more ensemble elements (up to the max of `num_sets`).
+- `seed`: The seed for the random memory weights. Every decode starts again from this seed, so a shot's decoding depends only on its own syndrome, not on the shots decoded before it or on `parallel`.
 
 While we make no direct claims about the performance of this implementation, it performs relatively well due to its Rust implementation which is backed by an efficient sparse array message-passing data structure with a contiguous memory layout.
 

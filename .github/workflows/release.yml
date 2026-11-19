@@ -145,29 +145,73 @@ jobs:
           name: wheels-sdist
           path: dist
 
-  # release:
-  #   name: Release
-  #   runs-on: ubuntu-latest
-  #   if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-  #   needs: [linux, musllinux, windows, macos, sdist]
-  #   permissions:
-  #     # Use to sign the release artifacts
-  #     id-token: write
-  #     # Used to upload release artifacts
-  #     contents: write
-  #     # Used to generate artifact attestation
-  #     attestations: write
-  #   steps:
-  #     - uses: actions/download-artifact@v6
-  #     - name: Generate artifact attestation
-  #       uses: actions/attest-build-provenance@v3
-  #       with:
-  #         subject-path: 'wheels-*/*'
-  #     - name: Install uv
-  #       if: ${{ startsWith(github.ref, 'refs/tags/') }}
-  #       uses: astral-sh/setup-uv@v7
-  #     - name: Publish to PyPI
-  #       if: ${{ startsWith(github.ref, 'refs/tags/') }}
-  #       run: uv publish 'wheels-*/*'
-  #       env:
-  #         UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+  # The Python CI already tests the code on each platform. This job tests
+  # the artifacts: the sdist, the manylinux wheel, and the cross-compiled
+  # aarch64 wheel.
+  test:
+    name: Test ${{ matrix.platform.artifact }}
+    needs: [linux, sdist]
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - runner: ubuntu-22.04
+            artifact: wheels-linux-x86_64
+          - runner: ubuntu-22.04-arm
+            artifact: wheels-linux-aarch64
+          - runner: ubuntu-latest
+            artifact: wheels-sdist
+    steps:
+      # Only the tests: the installed package must come from the artifact.
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: tests
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v6
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: dist
+      - name: Install relay-bp from the artifact
+        run: |
+          if [ "${{ matrix.platform.artifact }}" = wheels-sdist ]; then
+            python -m pip install maturin
+            python -m pip install --no-index --no-deps --no-build-isolation --no-binary relay-bp --find-links dist relay-bp
+          else
+            python -m pip install --no-index --no-deps --only-binary relay-bp --find-links dist relay-bp
+          fi
+          # The old numpy versions that beliefmatching 0.2 needs have no wheel
+          # for Python 3.14.
+          python -m pip install --only-binary numpy,scipy "relay-bp[stim]" pytest
+      # conftest.py skips every test when relay_bp does not import.
+      - name: Import relay_bp
+        run: python -c "import relay_bp; print(relay_bp.__file__)"
+      - name: Run tests
+        run: python -m pytest tests
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    needs: [linux, musllinux, windows, macos, sdist, test]
+    permissions:
+      # Use to sign the release artifacts
+      id-token: write
+      # Used to upload release artifacts
+      contents: write
+      # Used to generate artifact attestation
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v6
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: 'wheels-*/*'
+      - name: Install uv
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: astral-sh/setup-uv@v7
+      - name: Publish to PyPI
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: uv publish --trusted-publishing always 'wheels-*/*'

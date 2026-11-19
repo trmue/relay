@@ -145,23 +145,33 @@ jobs:
           name: wheels-sdist
           path: dist
 
-  # The Python CI already tests the code on each platform. This job tests
-  # the artifacts: the sdist, the manylinux wheel, and the cross-compiled
-  # aarch64 wheel.
+  # Test the artifacts: each wheel on its own platform, with the oldest and newest Python it is
+  # built for, and the sdist. The stim tests need stim, pymatching and ldpc, which have no
+  # wheels for aarch64 Linux and Windows on ARM, so those wheels run the other tests only.
   test:
-    name: Test ${{ matrix.platform.artifact }}
-    needs: [linux, sdist]
+    name: Test ${{ matrix.platform.artifact }} (Python ${{ matrix.platform.python }})
+    needs: [linux, windows, macos, sdist]
     runs-on: ${{ matrix.platform.runner }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
         platform:
-          - runner: ubuntu-22.04
-            artifact: wheels-linux-x86_64
-          - runner: ubuntu-22.04-arm
-            artifact: wheels-linux-aarch64
-          - runner: ubuntu-latest
-            artifact: wheels-sdist
+          - {runner: ubuntu-22.04, artifact: wheels-linux-x86_64, python: "3.9", stim: true}
+          - {runner: ubuntu-22.04, artifact: wheels-linux-x86_64, python: "3.14", stim: true}
+          - {runner: ubuntu-22.04-arm, artifact: wheels-linux-aarch64, python: "3.9", stim: false}
+          - {runner: ubuntu-22.04-arm, artifact: wheels-linux-aarch64, python: "3.14", stim: false}
+          - {runner: windows-latest, artifact: wheels-windows-x64, python: "3.11", stim: true}
+          - {runner: windows-latest, artifact: wheels-windows-x64, python: "3.14", stim: true}
+          - {runner: windows-11-arm, artifact: wheels-windows-aarch64, python: "3.12", stim: false}
+          - {runner: windows-11-arm, artifact: wheels-windows-aarch64, python: "3.14", stim: false}
+          - {runner: macos-15-intel, artifact: wheels-macos-x86_64, python: "3.9", stim: true}
+          - {runner: macos-15-intel, artifact: wheels-macos-x86_64, python: "3.14", stim: true}
+          - {runner: macos-latest, artifact: wheels-macos-aarch64, python: "3.10", stim: true}
+          - {runner: macos-latest, artifact: wheels-macos-aarch64, python: "3.14", stim: true}
+          - {runner: ubuntu-latest, artifact: wheels-sdist, python: "3.14", stim: true}
     steps:
       # Only the tests: the installed package must come from the artifact.
       - uses: actions/checkout@v6
@@ -169,7 +179,8 @@ jobs:
           sparse-checkout: tests
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: ${{ matrix.platform.python }}
+          architecture: ${{ matrix.platform.runner == 'windows-11-arm' && 'arm64' || '' }}
       - uses: actions/download-artifact@v6
         with:
           name: ${{ matrix.platform.artifact }}
@@ -184,18 +195,58 @@ jobs:
           fi
           # The old numpy versions that beliefmatching 0.2 needs have no wheel
           # for Python 3.14.
-          python -m pip install --only-binary numpy,scipy "relay-bp[stim]" pytest
+          if [ "${{ matrix.platform.stim }}" = true ]; then
+            python -m pip install --only-binary numpy,scipy "relay-bp[stim]" pytest
+          else
+            python -m pip install --only-binary numpy,scipy relay-bp pytest
+          fi
       # conftest.py skips every test when relay_bp does not import.
       - name: Import relay_bp
         run: python -c "import relay_bp; print(relay_bp.__file__)"
       - name: Run tests
-        run: python -m pytest tests
+        run: |
+          if [ "${{ matrix.platform.stim }}" = true ]; then
+            python -m pytest tests
+          else
+            python -m pytest tests --ignore=tests/stim
+          fi
+
+  # JavaScript actions do not run in Alpine containers on ARM runners, so the tests run in a
+  # container started from the runner. numpy and scipy have musllinux wheels for aarch64 from
+  # Python 3.10 on, and stim has none.
+  test-musllinux:
+    name: Test wheels-musllinux-${{ matrix.platform.target }} (Python ${{ matrix.python }})
+    needs: [musllinux]
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - {runner: ubuntu-22.04, target: x86_64}
+          - {runner: ubuntu-22.04-arm, target: aarch64}
+        python: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: tests
+      - uses: actions/download-artifact@v6
+        with:
+          name: wheels-musllinux-${{ matrix.platform.target }}
+          path: dist
+      - name: Run tests
+        run: |
+          docker run --rm -v "$PWD:/io" -w /io python:${{ matrix.python }}-alpine sh -euc '
+            python -m pip install --root-user-action ignore --no-index --no-deps --only-binary relay-bp --find-links dist relay-bp
+            python -m pip install --root-user-action ignore --only-binary numpy,scipy relay-bp pytest
+            python -c "import relay_bp; print(relay_bp.__file__)"
+            python -m pytest -p no:cacheprovider tests --ignore=tests/stim
+          '
 
   release:
     name: Release
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    needs: [linux, musllinux, windows, macos, sdist, test]
+    needs: [linux, musllinux, windows, macos, sdist, test, test-musllinux]
     permissions:
       # Use to sign the release artifacts
       id-token: write

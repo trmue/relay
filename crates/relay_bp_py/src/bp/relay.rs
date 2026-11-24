@@ -49,7 +49,7 @@ macro_rules! create_bp_interface {
                 logging: bool,
                 seed: u64,
                 min_log_prior_ratio: Option<f64>,
-            ) -> PyResult<(Self, DynDecoder)> {
+            ) -> PyResult<PyClassInitializer<Self>> {
                 let min_sum_decoder = Self {};
 
                 let min_sum_config = MinSumDecoderConfig {
@@ -93,7 +93,7 @@ macro_rules! create_bp_interface {
                 );
 
                 let dyn_decoder = DynDecoder(Box::new(inner_decoder));
-                Ok((min_sum_decoder, dyn_decoder))
+                Ok(PyClassInitializer::from(dyn_decoder).add_subclass(min_sum_decoder))
             }
 
             pub fn decode<'py>(

@@ -1,9 +1,14 @@
 [workspace]
-resolver = "2"
+# resolver 3 = MSRV-aware resolution: `cargo update` prefers versions compatible with the
+# workspace rust-version below instead of the newest release.
+resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
 version = "0.2.2"
+# Minimum Supported Rust Version (rustc 1.92 ships with RHEL9). Cargo refuses to build on an
+# older toolchain; member crates inherit it via `rust-version.workspace = true`.
+rust-version = "1.92"
 authors = ["Thomas Alexander", "Tristan Müller"]
 description = "A rust implementation of relay belief propagation for qLDPC codes"
 license = "Apache-2.0"

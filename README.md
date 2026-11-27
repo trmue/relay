@@ -208,6 +208,9 @@ While we make no direct claims about the performance of this implementation, it 
 When running with Sinter we have noticed a relatively significant performance difference between using the packages builtin parallelism with `parallel=True` and Sinter's multiprocessing approach
 to task-scheduled parallelism. For large simulations it may be important to consider a different parallelism/batching strategy with Sinter but we have not explored this in detail.
 
+Sinter only receives the predicted observables from a decoder, so a shot whose decoding did not converge is counted as a success when its predicted observables happen to be right.
+The example [surface_code_ler.py](./examples/surface_code_ler.py) decodes with `decode_detailed_batch` instead and counts unconverged shots as failures.
+
 
 ### Additional comments/features
 - Stim test circuits are available in [testdata](tests/testdata/) and may be fetched using the helper functions `relay_bp.stim.testdata.circuits.get_test_circuit` and `relay_bp.stim.testdata.circuits.get_all_test_circuits`.
@@ -215,6 +218,7 @@ to task-scheduled parallelism. For large simulations it may be important to cons
 - Detailed execution information may be reported with `decode_detailed` and `decode_detailed_batch` returning a `DecodeResult`.
 - A variety of Relay-BP implementation data types are available such as `RelayDecoderF32/RelayDecoderF64/RelayDecoderI32/RelayDecoderI64`. These may be further limited in their messaging precision using the input parameters `data_scale_value` and `max_data_value` to effectively explore a range of non-native precisions such as `I5`.
     - Separately a fixed point implementation is available as `MinSumBPDecoderFixed` using the Rust [fixed-point](https://docs.rs/fixed/latest/fixed/) number crate.
+    - The integer and fixed-point implementations are not tested beyond basic checks and may not work as expected. Use the floating-point decoders for results.
 - The core MinSum BP implementation of Relay-BP is available as `relay_bp.MinSumBPDecoder<Type>`.
 
 ## Development

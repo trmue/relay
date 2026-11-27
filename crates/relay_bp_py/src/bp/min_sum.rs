@@ -18,7 +18,8 @@ use relay_bp::bp::min_sum::{MinSumBPDecoder, MinSumDecoderConfig};
 use relay_bp::decoder::Bit;
 
 macro_rules! create_bp_interface {
-    ($name: ident, $type: ident) => {
+    ($name: ident, $type: ident, $doc: literal) => {
+        #[doc = $doc]
         #[pyclass(extends=DynDecoder, subclass, module = "bp")]
         #[allow(dead_code)]
         pub struct $name {}
@@ -119,10 +120,34 @@ macro_rules! create_bp_interface {
     };
 }
 
-create_bp_interface!(MinSumBPDecoderF32, f32);
-create_bp_interface!(MinSumBPDecoderF64, f64);
+create_bp_interface!(
+    MinSumBPDecoderF32,
+    f32,
+    "Min-sum BP decoder with 32-bit floating-point messages."
+);
+create_bp_interface!(
+    MinSumBPDecoderF64,
+    f64,
+    "Min-sum BP decoder with 64-bit floating-point messages."
+);
 
-create_bp_interface!(MinSumBPDecoderI8, i8);
-create_bp_interface!(MinSumBPDecoderI16, i16);
-create_bp_interface!(MinSumBPDecoderI32, i32);
-create_bp_interface!(MinSumBPDecoderI64, i64);
+create_bp_interface!(
+    MinSumBPDecoderI8,
+    i8,
+    "Min-sum BP decoder with 8-bit integer messages.\n\nThe integer implementations are not tested beyond basic checks and may not work as expected."
+);
+create_bp_interface!(
+    MinSumBPDecoderI16,
+    i16,
+    "Min-sum BP decoder with 16-bit integer messages.\n\nThe integer implementations are not tested beyond basic checks and may not work as expected."
+);
+create_bp_interface!(
+    MinSumBPDecoderI32,
+    i32,
+    "Min-sum BP decoder with 32-bit integer messages.\n\nThe integer implementations are not tested beyond basic checks and may not work as expected."
+);
+create_bp_interface!(
+    MinSumBPDecoderI64,
+    i64,
+    "Min-sum BP decoder with 64-bit integer messages.\n\nThe integer implementations are not tested beyond basic checks and may not work as expected."
+);

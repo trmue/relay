@@ -18,6 +18,10 @@ use relay_bp::bp::min_sum::MinSumDecoderConfig;
 use relay_bp::bp::min_sum_fixed::MinSumBPDecoderFixed as MinSumBPDecoderFixedInner;
 use relay_bp::decoder::Bit;
 
+/// Min-sum BP decoder with fixed-point messages.
+///
+/// The fixed-point implementation is not tested beyond basic checks and may not work as
+/// expected.
 #[pyclass(extends=DynDecoder, subclass, module = "bp")]
 #[allow(dead_code)]
 pub struct MinSumBPDecoderFixed {}

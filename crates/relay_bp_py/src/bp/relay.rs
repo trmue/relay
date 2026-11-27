@@ -18,7 +18,8 @@ use relay_bp::bp::relay::{RelayDecoder, RelayDecoderConfig, StoppingCriterion};
 use relay_bp::decoder::Bit;
 
 macro_rules! create_bp_interface {
-    ($name: ident, $type: ident) => {
+    ($name: ident, $type: ident, $doc: literal) => {
+        #[doc = $doc]
         #[pyclass(extends=DynDecoder, subclass, module = "bp")]
         #[allow(dead_code)]
         pub struct $name {}
@@ -148,7 +149,23 @@ macro_rules! create_bp_interface {
     };
 }
 
-create_bp_interface!(RelayDecoderF32, f32);
-create_bp_interface!(RelayDecoderF64, f64);
-create_bp_interface!(RelayDecoderI32, i32);
-create_bp_interface!(RelayDecoderI64, i64);
+create_bp_interface!(
+    RelayDecoderF32,
+    f32,
+    "Relay-BP decoder with 32-bit floating-point messages."
+);
+create_bp_interface!(
+    RelayDecoderF64,
+    f64,
+    "Relay-BP decoder with 64-bit floating-point messages."
+);
+create_bp_interface!(
+    RelayDecoderI32,
+    i32,
+    "Relay-BP decoder with 32-bit integer messages.\n\nThe integer implementations are not tested beyond basic checks and may not work as expected."
+);
+create_bp_interface!(
+    RelayDecoderI64,
+    i64,
+    "Relay-BP decoder with 64-bit integer messages.\n\nThe integer implementations are not tested beyond basic checks and may not work as expected."
+);

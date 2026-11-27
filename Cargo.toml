@@ -5,7 +5,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.2.2"
+version = "0.3.0"
 # Minimum Supported Rust Version (rustc 1.92 ships with RHEL9). Cargo refuses to build on an
 # older toolchain; member crates inherit it via `rust-version.workspace = true`.
 rust-version = "1.92"

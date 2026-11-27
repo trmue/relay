@@ -32,6 +32,9 @@ Relay-BP achieves order-of-magnitude improvements in decoding performance for bi
 - Logical Operations on/between BB code modules ([arXiv:2506.03094](https://arxiv.org/abs/2506.03094))
 - Rotated Surface Codes
 
+**⚡ GPU Implementation**
+[Pelagos](https://github.com/quantum-supercomputing/pelagos) is a GPU-accelerated implementation of Relay-BP written in Triton, for NVIDIA, AMD and Intel GPUs. Its interface is compatible with this package.
+
 **💬 Get Involved**
 We’re actively exploring Relay-BP and its potential extensions. If you're interested in contributing, experimenting, or just curious, feel free to:
 - Open an issue for discussion

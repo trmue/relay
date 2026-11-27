@@ -9,8 +9,12 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "Apache 2.0"}
 authors = [
-    { name = "Thomas Alexander", email = "thomas.a.alexander@ibm.com" },
+    { name = "Thomas Alexander" },
     { name = "Tristan Müller", email = "tristan.mueller@ibm.com" },
+]
+maintainers = [
+    { name = "Tristan Müller", email = "tristan.mueller@ibm.com" },
+    { name = "Roman Pletka", email = "rap@zurich.ibm.com" },
 ]
 keywords = [
     "relay",

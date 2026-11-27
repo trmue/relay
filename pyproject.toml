@@ -14,7 +14,7 @@ authors = [
 ]
 maintainers = [
     { name = "Tristan Müller", email = "tristan.mueller@ibm.com" },
-    { name = "Roman Pletka" },
+    { name = "Roman Pletka", email = "rap@zurich.ibm.com" },
 ]
 keywords = [
     "relay",

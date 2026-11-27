@@ -35,7 +35,7 @@ impl Mod2Mul<&Array1<Bit>> for SparseBitMatrix {
     type Output = Array1<Bit>;
 
     fn mul_mod2(&self, rhs: &Array1<Bit>) -> Self::Output {
-        let mut detectors_u8 = self * rhs;
+        let mut detectors_u8: Array1<Bit> = self * rhs;
         detectors_u8.map_inplace(|x| *x %= 2);
         detectors_u8
     }

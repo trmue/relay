@@ -8,13 +8,14 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use ndarray::Array2;
 use ndarray_npy::read_npy;
 use relay_bp::bp::min_sum::{MinSumBPDecoder, MinSumDecoderConfig};
 use relay_bp::decoder::{Bit, Decoder, DecoderRunner};
 use relay_bp::dem::DetectorErrorModel;
 use relay_bp::utilities::test::get_test_data_path;
+use std::hint::black_box;
 use std::sync::Arc;
 
 fn gross_code_benchmark(c: &mut Criterion) {

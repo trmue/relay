@@ -1,9 +1,14 @@
 [workspace]
-resolver = "2"
+# resolver 3 = MSRV-aware resolution: `cargo update` prefers versions compatible with the
+# workspace rust-version below instead of the newest release.
+resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
 version = "0.2.2"
+# Minimum Supported Rust Version (rustc 1.92 ships with RHEL9). Cargo refuses to build on an
+# older toolchain; member crates inherit it via `rust-version.workspace = true`.
+rust-version = "1.92"
 authors = ["Thomas Alexander", "Tristan Müller"]
 description = "A rust implementation of relay belief propagation for qLDPC codes"
 license = "Apache-2.0"
@@ -11,14 +16,17 @@ repository = "https://github.com/trmue/relay"
 readme = "./README.md"
 
 [workspace.dependencies]
-ndarray = {version = ">= 0.15, < 0.17", features = ["serde"]}
-ndarray-npy = "0.9.1"
-numpy = "0.28"
+ndarray = {version = ">= 0.15, < 0.18", features = ["serde"]}
+ndarray-npy = "0.11.0"
+numpy = "0.29"
 serde = {version = ">=1.0", features = ["derive"]}
-pyo3 = "~0.28"
+pyo3 = "~0.29"
 rayon = "1.10.0"
 sprs = {version = ">= 0.11"}
 indicatif = {version = ">=0.17", features = ["rayon"]}
+# Pinned so relay builds on rustc 1.92 (RHEL9): fixed 1.31.0 declares rust-version 1.93.
+# Inherited by relay-bp via `fixed = {workspace = true}`; an unreferenced workspace entry has no effect.
+fixed = "=1.30.0"
 
 [workspace.lints.rust]
 
